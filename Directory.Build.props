@@ -11,6 +11,7 @@
     <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
     <Company>Wingspan Access</Company>
     <Product>Wingspan Access</Product>
+    <Copyright>Copyright (C) 2026 Toni Barth, GNU GPL 3.0 or later</Copyright>
   </PropertyGroup>
 
   <!-- BuildInfo.Version and BuildInfo.RepositorySlug as constants for both projects. -->

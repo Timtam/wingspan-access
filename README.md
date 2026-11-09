@@ -245,6 +245,15 @@ use the game's language codes, for example `en`, `de`, `fr`, `pt-BR`. To add a l
 - The installer writes its log to `%TEMP%\WingspanAccessInstaller.log`.
 - After a game update, start the game once and wait; BepInEx regenerates its files.
 
+## License
+
+Copyright (C) 2026 Toni Barth
+
+Wingspan Access is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version. It is distributed in the hope that it will be
+useful, but without any warranty. See [LICENSE](LICENSE) for the full text.
+
 ## Credits and licenses
 
 - [BepInEx](https://github.com/BepInEx/BepInEx), LGPL-2.1. The release ZIP contains it unchanged.

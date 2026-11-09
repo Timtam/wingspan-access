@@ -27,3 +27,4 @@ release workflow turns that section into the next version and uses it as the rel
 - Backspace takes the last picked food out of a payment or a cache again.
 - Speech and braille through Prism (NVDA, JAWS and other screen readers, SAPI fallback). The mod
   follows the game's language; its own messages are in English and German.
+- License: GNU General Public License, version 3 or later.

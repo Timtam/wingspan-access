@@ -97,6 +97,7 @@ Copy-Item -LiteralPath (Join-Path $root 'packaging\BepInEx.cfg') -Destination (J
 $pluginDir = Join-Path $stage 'BepInEx\plugins\WingspanAccess'
 New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
 Copy-Item -LiteralPath $plugin, $PrismDll, $installer -Destination $pluginDir
+Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $pluginDir 'LICENSE.txt')
 Copy-Item -Path (Join-Path $licenses '*') -Destination $pluginDir
 
 $projectUrl = if ($RepositorySlug) { "https://github.com/$RepositorySlug" } else { 'see the README of the source code' }

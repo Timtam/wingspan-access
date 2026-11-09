@@ -39,8 +39,9 @@ script, so it is built only when the script changes.
 - `dist/WingspanAccess-<version>.zip`: `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`,
   `dotnet/` and `BepInEx/core/` from BepInEx (without its changelog), `BepInEx/config/BepInEx.cfg`
   from `packaging/`, and `BepInEx/plugins/WingspanAccess/` with the mod, `prism.dll` (checked to be
-  x86), the installer, `README.txt`, `THIRD-PARTY-NOTICES.txt` and the license texts of BepInEx and
-  Prism (downloaded once to `third_party/licenses`).
+  x86), the installer, `README.txt`, `LICENSE.txt` (the project's GPL, from `LICENSE`),
+  `THIRD-PARTY-NOTICES.txt` and the license texts of BepInEx and Prism (downloaded once to
+  `third_party/licenses`).
 - `dist/WingspanAccessInstaller.exe`, always with this name, so that
   `releases/latest/download/WingspanAccessInstaller.exe` is the newest installer.
 - `dist/SHA256SUMS.txt`.
