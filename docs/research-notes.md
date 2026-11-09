@@ -262,14 +262,73 @@ The console ports left a complete gamepad UI in the PC build. That is the main h
   updates after the turn passes on.
 - The game's own log also shows moves, e.g. `[TurnProcessing] Played bird - 250 in habitat LayEggs`.
 
+### Round 2 to game end (2026-11-09, morning)
+
+- Decisions that drop the selection (e.g. after rolling dice for a power) can stop taking gamepad
+  input. The focus guard now also runs when a decision's selection becomes empty and calls
+  `SetGamepadInteractive(true)` again. Before that, Space did nothing after the roll.
+- `GamepadScreen.GamepadAccept` is patched: decisions that do not declare their own `GamepadAccept`
+  press the shared Next button (`GAME/Game_Canvas/NEXT_NotchPadding/NEXT`, `MCButton.InvokeClick*`)
+  when it is enabled. `Game.NextButton.IsAvailable()` also tells the payment announcer whether a
+  payment can be confirmed.
+- Drawing from the deck takes two confirmations: the first moves the shown card into the hand
+  (`DrawBirds_Decision._isDrawingCardFromDeck`), the second confirms. `_cardsDrawnFromDeck` holds the
+  drawn bird ids; marked tray cards count in `CardsTakenTotalCount`.
+- Birdfeeder dice: `DiceUI_Image.FoodType` names double faces ("nectar or fruit");
+  `BaseGainFoodFromBirdFeeder_Decision.foodChosen.List[i].Token` is the food actually taken and
+  `amountToChoose` the food still allowed (it drops after a reroll of an empty feeder).
+- Playing a bird: `Rulebook.CanPlay(data, player, null, new Nullable<ActionType>(), 0)` gives the
+  habitats where the rules allow the bird now (food, eggs, space). The cost panel shows the payment
+  in `FoodAboutToPay.FoodButtons` (active buttons) of `ChoosePayment_Panel` (proposal) or
+  `ChangePayment_Panel` (manual choice); `BirdPayment.Food` is only filled after confirming. The egg
+  cost comes from `EggsPaymentStateController.GetEggsCost(_playerController, _currentData)`.
+- The hand: `PlayerHandUI.IsInCardPreview` on `GAME/MainCamera/LocalGameStateView/PlayerHand` says
+  whether it is open. The selection stays on a card after closing, so Enter would still play it
+  while the hand is open only.
+- Round goals: `GameState.GoalBoardState.GetGoalForRound(index)` (0-based) with `GoalName`,
+  `GetGoalCount(playerId)` and `Players` (`GoalPlayer.P_Score`, provisional for the running round).
+  `GoalTileData.GetLocalizedName()` returns placeholders ("KEY Short/24 ...") for many tiles, so the
+  mod has its own short names (`goal.*`); `GetLocalizedDescription()` is the tooltip text.
+- Round end: `BaseResolveSpecialPowers_Decision._birdsToResolve` / `_notActivatedBirds`;
+  `Player.GetBirdHabitatType(birdId)`.
+- Goal board (`GoalAndNectarMat_Screen`): standings per round from the rules model; the points row
+  belongs to `_playerController.Player`, which is the opponent during their round end turn. Tabs
+  switch with the PreviewPlayerLeft/Right buttons (mapped to Left/Right there).
+- Game end (`GameFinished_Screen`): per player `GameFinishedPlayerSliders*` with
+  `GameFinishedSliderScore_<Category>/Background` texts; the total counts up during an animation,
+  so the mod adds up the categories.
+- Saved games (`MatchUILocal`): `GameSave` has round, turns left, mode and portraits; the date text
+  is a hidden placeholder, the match id ends in the creation time as a Windows file time.
+- Message history: every spoken message except focus announcements and information asked for with
+  a key (`ScreenReader.SayTransient`) is kept (200 entries).
+
+### Zones (2026-11-09)
+
+The keyboard layout was consolidated after the example of Accessible Arena (MTG Arena): the number
+keys open zones (`UI/Zones`), inside a zone Left/Right/Home/End move, Up/Down read detail lines and
+Escape leaves. Enter, Space and Tab stay with the game. The key table is at the top of
+`ZoneNavigator`, so zones can move to letter keys later.
+
+- Habitat zones read the rules model (`Player.GetAllBirdsInHabitat`) and move the view with
+  `UIGod.GoTo(habitat)`. Birds sync to the game's `GamepadCardSlot` (`_birdSlot.Card.GameStateBird`)
+  during tasks other than choosing an action, so Enter acts on the bird under the cursor.
+- The tray syncs to `GamepadCardSlot._slot.Card` (bird id) and the deck to the `DeckSlot`; birdfeeder
+  dice to `DiceUI_Image.Button` while taking food.
+- The hand zone presses ToggleCardPreview to open the hand, steps `PlayerHandUI.NextCard()` /
+  `PreviousCard()` to the card under the cursor and presses Back to close it again.
+- While a zone is open, `KeyboardBridge` does not translate the arrows and Escape (and Enter in the
+  players zone), and `FocusAnnouncer` stays silent about selections.
+- Page Up/Down moved from the habitats to the message history.
+
 ### Known gaps
 
-- Bird powers with their own decisions are mostly untested. Only the "requirement not fulfilled"
-  note has been seen.
-- Untested so far: Oceania nectar options, round end and game end scoring, the pause menu, Automa
-  games, Duet mode, the colour, portrait and background popups, and the online menus.
-- The remaining number of cards to draw in `DrawBirds_Decision` ("Übrige Karten:") is only shown as
-  an icon and is not announced yet.
+- Most bird powers with their own decisions are still untested; seen so far: copy a white power
+  (requirement note), roll dice and cache, discard food to tuck cards, tuck cards from the deck,
+  gain food from the supply (yes/no), skip power.
+- Untested: Automa games, Duet mode, the colour, portrait and background popups, the online menus,
+  bonus card scoring details at game end, tie breaks.
+- Sometimes the first Enter in a decision is ignored right after the camera moved (e.g. drawing
+  right after Page Down). Pressing again works.
 
 ### Design decision
 

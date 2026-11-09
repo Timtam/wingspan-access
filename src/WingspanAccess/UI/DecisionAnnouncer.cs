@@ -15,6 +15,10 @@ internal static class DecisionAnnouncer
 {
     private static readonly Regex InstructionName = new(@"^Description\w*Txt$|Title|Instruction|Header_?Text", RegexOptions.IgnoreCase);
 
+    private static readonly Regex Counter = new(@"^\d+\s*/\s*\d+$");
+
+    private static readonly HashSet<string> LabelOnlyDecisions = new() { "PlayBird_Decision", "DrawBirds_Decision" };
+
     private static int _decisionId;
     private static int _announceFrame = -1;
     private static int _nextCheck;
@@ -46,8 +50,20 @@ internal static class DecisionAnnouncer
         List<string> now = InstructionTexts(decision);
         var changed = now.FindAll(text => !_texts.Contains(text));
         _texts = now;
+
+        // Decisions without a translated name are announced by their title, which is also an instruction text.
+        if (first)
+            changed.Remove(UiText.ScreenName(decision));
+
+        // A bare counter ("2/2") is read with the label in front of it ("Untergeschobene Karten:").
+        for (int i = 0; i < changed.Count; i++)
+        {
+            int index = now.IndexOf(changed[i]);
+            if (Counter.IsMatch(changed[i]) && index > 0 && now[index - 1].EndsWith(":") && !changed.Contains(now[index - 1]))
+                changed[i] = $"{now[index - 1]} {changed[i]}";
+        }
         if (changed.Count > 0)
-            ScreenReader.Say(UiText.JoinSentences(changed), interrupt: !first);
+            ScreenReader.Say(UiText.JoinSentences(changed), interrupt: false); // after the focus announcement of the same action
     }
 
     /// <summary>
@@ -56,7 +72,9 @@ internal static class DecisionAnnouncer
     /// </summary>
     public static List<string> InstructionTexts(GamepadScreen decision)
     {
-        var result = decision == null ? new List<string>() : Screens.PlainTexts(decision.gameObject);
+        // Some decisions only carry labels next to icons; dedicated announcers read them instead.
+        bool ownTexts = decision != null && !LabelOnlyDecisions.Contains(decision.GetIl2CppType().Name);
+        var result = ownTexts ? Screens.PlainTexts(decision.gameObject) : new List<string>();
         foreach (TMPro.TMP_Text text in Object.FindObjectsOfType<TMPro.TMP_Text>())
         {
             if (!InstructionName.IsMatch(text.name) || !UiText.IsShown(text))

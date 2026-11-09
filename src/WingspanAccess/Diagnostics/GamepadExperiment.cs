@@ -31,6 +31,6 @@ internal static class GamepadExperiment
 
         GameObject selected = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
         Plugin.Logger.LogInfo($"[Experiment] selection after default: {(selected == null ? "<none>" : UiText.PathOf(selected))}");
-        Speech.ScreenReader.Say("Experiment done");
+        Speech.ScreenReader.SayTransient("Experiment done");
     }
 }

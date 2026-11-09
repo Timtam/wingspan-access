@@ -46,6 +46,14 @@ internal static class UiDump
             count++;
         }
 
+        // Controls outside the top screen (shared "next" buttons, HUD toggles) with their state.
+        foreach (UnityEngine.UI.Selectable selectable in Object.FindObjectsOfType<UnityEngine.UI.Selectable>())
+        {
+            if (!selectable.gameObject.activeInHierarchy || !new Visibility(selectable.transform.root).IsVisible(selectable.transform))
+                continue;
+            Plugin.Logger.LogInfo($"[Dump] control {UiText.PathOf(selectable.gameObject)} type={selectable.GetIl2CppType().Name} interactable={selectable.interactable}");
+        }
+
         return count;
     }
 
@@ -85,6 +93,6 @@ internal static class UiDump
                 Plugin.Logger.LogInfo($"[Sprites] {asset.name} ({names.Count}): {string.Join(", ", names)}");
         }
 
-        Speech.ScreenReader.Say("Sprites written to log");
+        Speech.ScreenReader.SayTransient("Sprites written to log");
     }
 }

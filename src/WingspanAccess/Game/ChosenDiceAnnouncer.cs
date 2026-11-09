@@ -8,11 +8,13 @@ namespace WingspanAccess.Game;
 
 /// <summary>
 /// When taking food from the birdfeeder, chosen dice move into a separate row
-/// ("DicesChosenButtons"). This announces that row whenever it changes.
+/// ("DicesChosenButtons"). This announces how much food may be taken when the decision opens,
+/// and the chosen dice with the number still possible whenever the row changes.
 /// </summary>
 internal static class ChosenDiceAnnouncer
 {
     private static string _last;
+    private static int _mismatchChecks;
     private static int _nextCheck;
 
     public static void Tick(GamepadScreen top)
@@ -44,14 +46,55 @@ internal static class ChosenDiceAnnouncer
                 chosen.Add(name);
         }
 
+        // Double dice (nectar or seed) show both foods; the decision knows which one was taken.
+        BaseGainFoodFromBirdFeeder_Decision food = top.TryCast<BaseGainFoodFromBirdFeeder_Decision>();
+        var taken = food?.foodChosen?.List;
+        if (taken != null && taken.Count > 0)
+        {
+            if (taken.Count == chosen.Count)
+            {
+                _mismatchChecks = 0;
+                chosen.Clear();
+                for (int i = 0; i < taken.Count; i++)
+                    chosen.Add(GameReader.FoodTypeName(taken[i].Token));
+            }
+            else if (++_mismatchChecks < 3)
+            {
+                return; // the row and the decision update in different frames
+            }
+        }
+
         string text = string.Join(", ", chosen);
         if (text == _last)
             return;
 
         bool first = _last == null;
         _last = text;
-        if (!first)
-            ScreenReader.Say(chosen.Count == 0 ? Loc.Get("dice.none") : Loc.Get("dice.chosen", text));
+        int amount = food == null ? 0 : food.amountToChoose;
+        if (first)
+        {
+            // Also after returning from the skip warning, where dice may already be chosen.
+            var intro = new List<string>();
+            if (amount > 0)
+                intro.Add(Loc.Count("food.to_take", amount));
+            if (chosen.Count > 0)
+                intro.Add(Loc.Get("dice.chosen", text));
+            if (intro.Count > 0)
+                ScreenReader.Say(UiText.JoinSentences(intro), interrupt: false);
+            return;
+        }
+
+        if (chosen.Count == 0)
+        {
+            ScreenReader.Say(Loc.Get("dice.none"));
+            return;
+        }
+
+        var parts = new List<string> { Loc.Get("dice.chosen", text) };
+        if (amount > chosen.Count)
+            parts.Add(Loc.Count("dice.more", amount - chosen.Count));
+        parts.Add(Loc.Get("dice.confirm"));
+        ScreenReader.Say(UiText.JoinSentences(parts));
     }
 
     private static Transform FindChild(Transform root, string name)

@@ -21,7 +21,7 @@ internal static class UiText
     {
         try
         {
-            string special = SetupDescriber.Describe(target) ?? CardDescriber.Describe(target);
+            string special = SetupDescriber.Describe(target) ?? CardDescriber.Describe(target) ?? SaveDescriber.Describe(target);
             if (special != null)
             {
                 string cardPosition = Position(target);
@@ -113,6 +113,16 @@ internal static class UiText
         if (parentKey != null && Loc.Has(parentKey))
             return Loc.Get(parentKey);
 
+        // Food already picked for a payment: Enter takes it out again.
+        FoodButton picked = target.GetComponent<FoodButton>();
+        if (picked != null)
+            return Loc.Get("name.picked_food", Game.GameReader.FoodTypeName(picked.FoodType));
+
+        // Birdfeeder dice know their face; double faces (nectar or fruit) have a single food in their object name.
+        DiceUI_Image die = target.GetComponent<DiceUI_Image>() ?? (parent == null ? null : parent.GetComponent<DiceUI_Image>());
+        if (die != null)
+            return Game.GameReader.FoodTypeName(die.FoodType);
+
         // Food choice buttons are named after their food, e.g. "Dice1/ButtonInPanel_Fruit".
         Match food = FoodButton.Match(target.name);
         return food.Success && Loc.Has("name." + food.Groups[1].Value) ? Loc.Get("name." + food.Groups[1].Value) : null;
@@ -155,6 +165,12 @@ internal static class UiText
         string clean = Clean(text.text);
         if (clean.Length == 0)
             return clean;
+
+        // "label.<parent>/<name>" fixes one text in one place, "label.<name>" every text of that name.
+        Transform parent = text.transform.parent;
+        string qualified = parent == null ? null : $"label.{parent.name}/{text.name}";
+        if (qualified != null && Loc.Has(qualified))
+            return Loc.Get(qualified, clean);
         string key = "label." + text.name;
         return Loc.Has(key) ? Loc.Get(key, clean) : clean;
     }
@@ -212,8 +228,13 @@ internal static class UiText
         text = Whitespace.Replace(text, " ").Trim();
         // "[nest icon] Nest" in game texts would otherwise read "Höhlennest Nest".
         text = DoubledNest.Replace(text, "$1");
+        // German game texts use the plural for one point, too ("1 Punkte").
+        if (Loc.Language != null && Loc.Language.StartsWith("de"))
+            text = OnePointGerman.Replace(text, "1 Punkt");
         return SpaceBeforePunctuation.Replace(text, "$1");
     }
+
+    private static readonly Regex OnePointGerman = new(@"(?<![\d,.])1 Punkte\b");
 
     private static readonly Regex DoubledNest = new(@"(nest) nest\b", RegexOptions.IgnoreCase);
     private static readonly Regex FoodButton = new(@"^ButtonInPanel_(\w+)$");
@@ -255,7 +276,17 @@ internal static class UiText
             return Loc.Get(key);
 
         string title = FindTitle(screen.gameObject);
-        return title ?? HumanizeTypeName(typeName);
+        if (title != null)
+            return title;
+
+        // Bird powers and other decisions without a translated name: their instruction, else "decision".
+        if (screen.TryCast<Decision>() != null)
+        {
+            List<string> instructions = DecisionAnnouncer.InstructionTexts(screen);
+            return instructions.Count > 0 ? instructions[0] : Loc.Get("screen.decision");
+        }
+
+        return HumanizeTypeName(typeName);
     }
 
     /// <summary>First visible text whose object (or parent) is named like a title or header.</summary>

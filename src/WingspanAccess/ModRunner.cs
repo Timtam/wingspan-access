@@ -29,7 +29,7 @@ internal static class ModRunner
             if (!_announcedLoad && GamepadController.I != null)
             {
                 _announcedLoad = true;
-                ScreenReader.Say(Loc.Get("mod.loaded"));
+                ScreenReader.SayTransient(Loc.Get("mod.loaded"));
             }
 
             InputDiagnostics.DumpOnce();

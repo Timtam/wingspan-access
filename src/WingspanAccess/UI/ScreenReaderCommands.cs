@@ -15,10 +15,13 @@ internal static class ScreenReaderCommands
     public static void Tick()
     {
         if (!TextFieldHasFocus())
-            GameKeys();
+        {
+            Zones.ZoneNavigator.Tick();
+            MessageHistory.Tick();
+        }
 
         if (Keys.Pressed(KeyCode.F1))
-            ScreenReader.Say(Loc.Get("help.keys"));
+            ScreenReader.SayTransient(Loc.Get("help.keys"));
         if (Keys.Pressed(KeyCode.F2))
             ReadScreen();
         if (Keys.Pressed(KeyCode.F3))
@@ -33,14 +36,14 @@ internal static class ScreenReaderCommands
         }
         if (Keys.Pressed(KeyCode.F12))
         {
-            bool control = UnityEngine.Input.GetKey(KeyCode.LeftControl) || UnityEngine.Input.GetKey(KeyCode.RightControl);
-            bool shift = UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
+            bool control = Modifier(KeyCode.LeftControl) || Modifier(KeyCode.RightControl);
+            bool shift = Modifier(KeyCode.LeftShift) || Modifier(KeyCode.RightShift);
             if (control && shift)
                 Diagnostics.UiDump.DumpTerms(@"food|nest|habitat|egg|icon|predator|flock|tuck|cache|bonus|wingspan|power|action|round|goal|turn|score|point", 600);
             else if (control)
                 Diagnostics.UiDump.DumpSpriteNames();
             else if (shift)
-                ScreenReader.Say(Loc.Get("debug.dumped", Diagnostics.UiDump.DumpAllVisibleTexts()));
+                ScreenReader.SayTransient(Loc.Get("debug.dumped", Diagnostics.UiDump.DumpAllVisibleTexts()));
             else
                 DumpTopScreen();
         }
@@ -51,36 +54,32 @@ internal static class ScreenReaderCommands
         GamepadScreen top = Screens.Top();
         if (top == null)
         {
-            ScreenReader.Say(Loc.Get("debug.no_screen"));
+            ScreenReader.SayTransient(Loc.Get("debug.no_screen"));
             return;
         }
 
         var parts = new List<string> { UiText.ScreenName(top) };
+        string board = GoalMatDescriber.Describe(top) ?? GameEndDescriber.Describe(top);
+        if (board != null)
+            parts.Add(board);
         if (top.TryCast<Decision>() != null)
-            parts.AddRange(DecisionAnnouncer.InstructionTexts(top));
+        {
+            foreach (string instruction in DecisionAnnouncer.InstructionTexts(top))
+            {
+                if (!parts.Contains(instruction))
+                    parts.Add(instruction);
+            }
+        }
         foreach (string text in Screens.PlainTexts(top.gameObject))
         {
             if (!parts.Contains(text))
                 parts.Add(text);
         }
 
-        ScreenReader.Say(UiText.JoinSentences(parts));
+        ScreenReader.SayTransient(UiText.JoinSentences(parts));
     }
 
     /// <summary>Number keys read the game state: 1-3 habitats, 4 birdfeeder, 5 tray, 6 supply, 7 hand, 8 round, 9 opponents.</summary>
-    private static void GameKeys()
-    {
-        if (Keys.Pressed(KeyCode.Alpha1)) Game.GameReader.Habitat(ActionType.GainFood);
-        else if (Keys.Pressed(KeyCode.Alpha2)) Game.GameReader.Habitat(ActionType.LayEggs);
-        else if (Keys.Pressed(KeyCode.Alpha3)) Game.GameReader.Habitat(ActionType.DrawBirds);
-        else if (Keys.Pressed(KeyCode.Alpha4)) Game.GameReader.Birdfeeder();
-        else if (Keys.Pressed(KeyCode.Alpha5)) Game.GameReader.Tray();
-        else if (Keys.Pressed(KeyCode.Alpha6)) Game.GameReader.Supply();
-        else if (Keys.Pressed(KeyCode.Alpha7)) Game.GameReader.Hand();
-        else if (Keys.Pressed(KeyCode.Alpha8)) Game.GameReader.Round();
-        else if (Keys.Pressed(KeyCode.Alpha9)) Game.GameReader.Opponents();
-        else if (Keys.Pressed(KeyCode.Alpha0)) Game.GameReader.Goals();
-    }
 
     private static bool TextFieldHasFocus()
     {
@@ -95,7 +94,7 @@ internal static class ScreenReaderCommands
         UnityEngine.EventSystems.EventSystem eventSystem = UnityEngine.EventSystems.EventSystem.current;
         GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
         List<string> texts = selected == null ? new List<string>() : Tooltips.TextsFor(selected);
-        ScreenReader.Say(texts.Count > 0 ? UiText.JoinSentences(texts) : Loc.Get("tooltip.none"));
+        ScreenReader.SayTransient(texts.Count > 0 ? UiText.JoinSentences(texts) : Loc.Get("tooltip.none"));
     }
 
     private static void AnnounceStatus()
@@ -103,7 +102,7 @@ internal static class ScreenReaderCommands
         GamepadScreen top = Screens.Top();
         string screen = top == null ? "-" : UiText.ScreenName(top);
         string mode = Loc.Get(VirtualGamepad.IsActive ? "status.gamepad" : "status.keyboard");
-        ScreenReader.Say(Loc.Get("status", ScreenReader.BackendName, Loc.Language, screen, mode));
+        ScreenReader.SayTransient(Loc.Get("status", ScreenReader.BackendName, Loc.Language, screen, mode));
     }
 
     private static void DumpTopScreen()
@@ -111,7 +110,7 @@ internal static class ScreenReaderCommands
         GamepadScreen top = Screens.Top();
         if (top == null)
         {
-            ScreenReader.Say(Loc.Get("debug.no_screen"));
+            ScreenReader.SayTransient(Loc.Get("debug.no_screen"));
             return;
         }
 
@@ -138,6 +137,10 @@ internal static class ScreenReaderCommands
         if (canvas != null && canvas.rootCanvas != null)
             count += Diagnostics.UiDump.DumpVisibleTexts(canvas.rootCanvas.gameObject);
 
-        ScreenReader.Say(Loc.Get("debug.dumped", count));
+        ScreenReader.SayTransient(Loc.Get("debug.dumped", count));
     }
+
+    /// <summary>A modifier held, or pressed and released within the frame (fast or synthetic input).</summary>
+    private static bool Modifier(KeyCode key) =>
+        UnityEngine.Input.GetKey(key) || UnityEngine.Input.GetKeyDown(key) || UnityEngine.Input.GetKeyUp(key);
 }

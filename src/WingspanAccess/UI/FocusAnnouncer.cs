@@ -30,6 +30,7 @@ internal static class FocusAnnouncer
     private static List<string> _watchedTexts = new();
     private static int _nextTextCheck;
     private static string _lastBoardState;
+    private static int _lastCardId;
 
     public static void Tick()
     {
@@ -40,6 +41,8 @@ internal static class FocusAnnouncer
         GamepadScreen top = Screens.Top();
         bool gamepadMode = !controller.LastControllerIsMouseOrKeyboard();
         bool modeChanged = gamepadMode != _lastGamepadMode;
+        if (modeChanged)
+            Plugin.Logger.LogInfo($"[Focus] gamepad mode {gamepadMode}");
         _lastGamepadMode = gamepadMode;
 
         int screenId = top == null ? 0 : top.GetInstanceID();
@@ -50,7 +53,7 @@ internal static class FocusAnnouncer
             _popupId = 0; // the game reuses popups (e.g. the turn popup); compare texts per appearance
             Plugin.Logger.LogInfo($"[Screen] top={top?.GetIl2CppType().Name ?? "<none>"} stack=[{Screens.DescribeStack()}]");
             if (top != null)
-                ScreenReader.Say(DescribeScreen(top));
+                ScreenReader.Say(DescribeScreen(top), history: IsGameEvent(top));
         }
 
         if (screenChanged || modeChanged)
@@ -66,13 +69,23 @@ internal static class FocusAnnouncer
         WatchValue();
         WatchPopupTexts(top);
         DecisionAnnouncer.Tick(top);
+        GoalMatDescriber.Tick(top);
         Game.GameStateCache.Update(top);
         Game.ActionAnnouncer.Tick(top);
         Game.OpponentWatcher.Tick();
         Game.PlayBirdAnnouncer.Tick(top);
         Game.ChosenDiceAnnouncer.Tick(top);
         Game.EggDecisionAnnouncer.Tick(top);
+        Game.DrawAnnouncer.Tick(top);
+        Game.SpecialPowersAnnouncer.Tick(top);
+        Game.DiscardAnnouncer.Tick(top);
     }
+
+    private static readonly HashSet<string> NotInHistory = new() { "WaitForOtherPlayer_Decision", "PauseMenu_Screen", "OptionsMenuPause" };
+
+    /// <summary>In-game screens (turns, decisions, results) go into the message history; menus do not.</summary>
+    private static bool IsGameEvent(GamepadScreen screen) =>
+        !NotInHistory.Contains(screen.GetIl2CppType().Name) && !UiText.PathOf(screen.gameObject).StartsWith("GAME/StartMenu_Canvas");
 
     /// <summary>Screen name; for popups also the texts that are not part of a button; then an optional key hint.</summary>
     public static string DescribeScreen(GamepadScreen screen)
@@ -80,7 +93,12 @@ internal static class FocusAnnouncer
         string typeName = screen.GetIl2CppType().Name;
         string name = UiText.ScreenName(screen);
         var parts = new List<string> { name };
-        if (SelectedTexts.TryGetValue(typeName, out string[] objectNames))
+        string special = GoalMatDescriber.Describe(screen) ?? GameEndDescriber.Describe(screen);
+        if (special != null)
+        {
+            parts.Add(special);
+        }
+        else if (SelectedTexts.TryGetValue(typeName, out string[] objectNames))
         {
             parts.AddRange(Screens.NamedTexts(screen.gameObject, objectNames));
         }
@@ -103,9 +121,11 @@ internal static class FocusAnnouncer
     {
         // The round goal track in this popup is read with the goals key instead.
         ["NewTurnAnnouncement_Popup"] = new[] { "RoundText", "TurnText", "TapText" },
+        // Another player's power gives you an extra action: which bird and what it does.
+        ["IncomingInterjectionTurnAnnouncement_Popup"] = new[] { "CentralBirdPowerText", "TapText" },
     };
 
-    private static readonly HashSet<string> SilentFocusScreens = new() { "NewTurnAnnouncement_Popup" };
+    private static readonly HashSet<string> SilentFocusScreens = new() { "NewTurnAnnouncement_Popup", "IncomingInterjectionTurnAnnouncement_Popup" };
 
     /// <summary>Last selection seen inside each screen, restored when the screen becomes the top again.</summary>
     private static readonly Dictionary<int, GameObject> LastSelectionPerScreen = new();
@@ -177,7 +197,7 @@ internal static class FocusAnnouncer
         var changed = now.FindAll(text => !_popupTexts.Contains(text));
         _popupTexts = now;
         if (changed.Count > 0)
-            ScreenReader.Say(UiText.JoinSentences(changed));
+            ScreenReader.SayTransient(UiText.JoinSentences(changed));
     }
 
     private static void TrackSelection(GamepadScreen top, bool interrupt)
@@ -202,6 +222,10 @@ internal static class FocusAnnouncer
         if (selected == null)
         {
             Plugin.Logger.LogInfo("[Focus] <none>");
+            // A decision that drops the selection (e.g. after rolling dice for a power) may also stop
+            // taking gamepad input; the guard turns it back on.
+            if (top != null && top.TryCast<Decision>() != null && top.TryCast<WaitForOtherPlayer_Decision>() == null && _guardFrame < 0)
+                _guardFrame = Time.frameCount + SelectionGraceFrames;
             return;
         }
 
@@ -210,10 +234,19 @@ internal static class FocusAnnouncer
         _dropdown = selected.GetComponent<TMPro.TMP_Dropdown>();
         _lastValue = CurrentValue();
         _watchedTexts = WatchedTexts(selected);
+        CardView selectedCard = CardDescriber.FindCardView(selected);
+        _lastCardId = selectedCard == null ? 0 : selectedCard.GetInstanceID();
 
         // Full-screen "click to continue" buttons repeat what the screen announcement just said.
         if (top != null && SilentFocusScreens.Contains(top.GetIl2CppType().Name))
             return;
+
+        // In a zone the zone navigator announces its items; the game's selection only follows it.
+        if (Zones.ZoneNavigator.IsActive)
+        {
+            Plugin.Logger.LogInfo($"[Focus] (zone) {UiText.PathOf(selected)}");
+            return;
+        }
 
         string description = UiText.Describe(selected);
         Transform parent = selected.transform.parent;
@@ -227,7 +260,7 @@ internal static class FocusAnnouncer
         }
 
         Plugin.Logger.LogInfo($"[Focus] {UiText.PathOf(selected)} => {description}");
-        ScreenReader.Say(description, interrupt);
+        ScreenReader.SayTransient(description, interrupt);
     }
 
     private static void WatchValue()
@@ -238,7 +271,7 @@ internal static class FocusAnnouncer
             if (value != _lastValue)
             {
                 _lastValue = value;
-                ScreenReader.Say(value);
+                ScreenReader.SayTransient(value);
                 return;
             }
         }
@@ -248,21 +281,36 @@ internal static class FocusAnnouncer
 
         _nextTextCheck = Time.frameCount + 6;
 
-        // Birds on the board: announce eggs, cached food and tucked cards when they change.
+        // Board slots stay selected while the view moves to another habitat; a new card under the
+        // selection is announced like a new selection.
         CardView card = CardDescriber.FindCardView(_selected);
+        int cardId = card == null ? 0 : card.GetInstanceID();
+        if (cardId != _lastCardId)
+        {
+            _lastCardId = cardId;
+            if (card != null)
+            {
+                _lastBoardState = null;
+                _watchedTexts = WatchedTexts(_selected);
+                if (!Zones.ZoneNavigator.IsActive)
+                    ScreenReader.SayTransient(UiText.Describe(_selected));
+            }
+        }
+
+        // Birds on the board: announce eggs, cached food and tucked cards when they change.
         BaseBirdCardView bird = card == null ? null : card.TryCast<BaseBirdCardView>();
         string boardState = bird == null ? null : CardDescriber.BoardState(bird);
         if (boardState != _lastBoardState)
         {
             if (_lastBoardState != null && boardState != null)
-                ScreenReader.Say(boardState);
+                ScreenReader.SayTransient(boardState);
             _lastBoardState = boardState;
         }
         List<string> now = WatchedTexts(_selected);
         var changed = now.FindAll(text => !_watchedTexts.Contains(text));
         _watchedTexts = now;
         if (changed.Count > 0 && _slider == null)
-            ScreenReader.Say(string.Join(", ", changed));
+            ScreenReader.SayTransient(string.Join(", ", changed));
     }
 
     private static List<string> WatchedTexts(GameObject selected)

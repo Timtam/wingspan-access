@@ -6,35 +6,45 @@ using WingspanAccess.UI;
 namespace WingspanAccess.Game;
 
 /// <summary>
-/// Reads the game state on demand (number keys): habitats, birdfeeder, tray, supply, hand,
-/// round and opponents. Everything comes from the game's rules model (Rules.*), so it is
-/// independent of what is currently shown on screen.
+/// Reads the game state for zones and announcements: players, board birds, round goals, names and
+/// food. Everything comes from the game's rules model (Rules.*), so it is independent of what is
+/// currently shown on screen.
 /// </summary>
 internal static class GameReader
 {
-    public static void Habitat(ActionType habitat)
-    {
-        Rules.Player player = GameStateCache.LocalPlayer;
-        if (player == null)
-        {
-            ScreenReader.Say(Loc.Get("game.not_running"));
-            return;
-        }
+    private static readonly ActionType[] Habitats = { ActionType.GainFood, ActionType.LayEggs, ActionType.DrawBirds };
 
-        ScreenReader.Say(DescribeHabitat(player, habitat));
+    /// <summary>One player at a glance: birds per habitat, food, hand size and actions left.</summary>
+    public static string PlayerSummary(Rules.Player player)
+    {
+        string name = player.IsLocalPlayer() ? Loc.Get("zone.you") : PlayerName(player);
+        int forest = player.GetAllBirdsInHabitat(ActionType.GainFood)?.Count ?? 0;
+        int grass = player.GetAllBirdsInHabitat(ActionType.LayEggs)?.Count ?? 0;
+        int wetland = player.GetAllBirdsInHabitat(ActionType.DrawBirds)?.Count ?? 0;
+        string food = FoodList(player._pf);
+        return Loc.Get("game.opponent", name, forest, grass, wetland,
+            food.Length == 0 ? Loc.Get("game.no_food") : food, player.BirdCards?.Count ?? 0, player.TokensLeft);
     }
 
-    public static string DescribeHabitat(Rules.Player player, ActionType habitat)
+    /// <summary>A player line by line: each habitat with its birds, food, cards and actions left.</summary>
+    public static List<string> PlayerLines(Rules.Player player)
     {
-        string name = Loc.Get("habitat." + habitat);
-        var birds = player.GetAllBirdsInHabitat(habitat);
-        if (birds == null || birds.Count == 0)
-            return Loc.Get("game.habitat_empty", name);
+        var lines = new List<string> { player.IsLocalPlayer() ? Loc.Get("zone.you") : PlayerName(player) };
+        foreach (ActionType habitat in Habitats)
+        {
+            var birds = player.GetAllBirdsInHabitat(habitat);
+            var names = new List<string>();
+            for (int i = 0; birds != null && i < birds.Count; i++)
+                names.Add(DescribeBoardBird(birds[i]));
+            lines.Add(Loc.Get("zone.habitat_line", Loc.Get("habitat." + habitat),
+                names.Count == 0 ? Loc.Get("game.nothing") : string.Join("; ", names)));
+        }
 
-        var parts = new List<string>();
-        for (int i = 0; i < birds.Count; i++)
-            parts.Add(DescribeBoardBird(birds[i]));
-        return Loc.Get(birds.Count == 1 ? "game.habitat.one" : "game.habitat", name, birds.Count, string.Join("; ", parts));
+        string food = FoodList(player._pf);
+        lines.Add(Loc.Get("zone.supply", food.Length == 0 ? Loc.Get("game.no_food") : food));
+        lines.Add($"{Loc.Count("game.bird_cards", player.BirdCards?.Count ?? 0)}, {Loc.Count("game.bonus_cards", player.BonusCards?.Count ?? 0)}");
+        lines.Add(Loc.Count("status.actions", player.TokensLeft));
+        return lines;
     }
 
     /// <summary>Bird on a player board: name plus eggs, cached food and tucked cards.</summary>
@@ -50,137 +60,79 @@ internal static class GameReader
         return string.Join(", ", parts);
     }
 
-    public static void Birdfeeder()
+    /// <summary>
+    /// The game's explanation of a round goal (the tooltip sighted players see on the goal tile).
+    /// It may refer to the tile's picture ("the nest type shown"), which the goal's name spells out.
+    /// </summary>
+    public static string GoalExplanation(int round)
     {
-        Rules.GameState state = GameStateCache.State;
-        if (state == null)
+        try
         {
-            ScreenReader.Say(Loc.Get("game.not_running"));
-            return;
+            Rules.Goal goal = GameStateCache.State?.GoalBoardState?.GetGoalForRound(round - 1);
+            if (goal != null && !goal.IsEmpty)
+            {
+                string description = GoalTilesDatabase.Get(goal.GoalName)?.GetLocalizedDescription();
+                if (!string.IsNullOrEmpty(description) && !description.StartsWith("KEY "))
+                    return UiText.Clean(description);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Goal explanation for round {round} failed: {e.Message}");
         }
 
-        string food = FoodList(state.BirdFeederState);
-        ScreenReader.Say(Loc.Get("game.birdfeeder", food.Length == 0 ? Loc.Get("game.nothing") : food));
+        return TooltipGoalText(round);
     }
 
-    public static void Tray()
+    private static bool _goalsLogged;
+
+    /// <summary>
+    /// A round goal's name from the goal board (e.g. "Birds with bowl nests with eggs"), else the goal
+    /// tile's tooltip in the HUD; null if neither exists.
+    /// </summary>
+    public static string GoalText(int round)
     {
-        Rules.GameState state = GameStateCache.State;
-        var visible = state?.BirdsDeckState?.Visible;
-        if (visible == null)
+        try
         {
-            ScreenReader.Say(Loc.Get("game.not_running"));
-            return;
+            Rules.GoalBoardState board = GameStateCache.State?.GoalBoardState;
+            if (board != null && !_goalsLogged)
+            {
+                _goalsLogged = true;
+                for (int i = 0; i <= 4; i++)
+                    Plugin.Logger.LogInfo($"[Goals] GetGoalForRound({i}) = {board.GetGoalForRound(i)?.GoalName}");
+            }
+
+            Rules.Goal goal = board?.GetGoalForRound(round - 1);
+            if (goal != null && !goal.IsEmpty)
+            {
+                // The game's short names are placeholders for many tiles ("KEY Short/24 ..."), so the mod names them.
+                string key = "goal." + goal.GoalName;
+                if (Loc.Has(key))
+                    return Loc.Get(key);
+                string name = GoalTilesDatabase.Get(goal.GoalName)?.GetLocalizedName();
+                if (!string.IsNullOrEmpty(name) && !name.StartsWith("KEY "))
+                    return UiText.Clean(name);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Goal name for round {round} failed: {e.Message}");
         }
 
-        var names = new List<string>();
-        for (int i = 0; i < visible.Count; i++)
-            names.Add(BirdName(visible[i]));
-        ScreenReader.Say(Loc.Get("game.tray", names.Count == 0 ? Loc.Get("game.nothing") : string.Join(", ", names)));
+        return TooltipGoalText(round);
     }
 
-    public static void Supply()
+    /// <summary>The goal tile's tooltip in the HUD (or its texts); null if the HUD is missing.</summary>
+    private static string TooltipGoalText(int round)
     {
-        Rules.Player player = GameStateCache.LocalPlayer;
-        if (player == null)
-        {
-            ScreenReader.Say(Loc.Get("game.not_running"));
-            return;
-        }
+        UnityEngine.GameObject slot = UnityEngine.GameObject.Find($"GAME/Game_Canvas/HabitatsNotchPadding/GoalsMiniBoard_HUD/TokenSlot{round}");
+        if (slot == null)
+            return null;
 
-        string food = FoodList(player._pf);
-        int birds = player.BirdCards?.Count ?? 0;
-        int bonus = player.BonusCards?.Count ?? 0;
-        ScreenReader.Say(Loc.Get("game.supply", food.Length == 0 ? Loc.Get("game.no_food") : food, birds, bonus));
-    }
-
-    public static void Hand()
-    {
-        Rules.Player player = GameStateCache.LocalPlayer;
-        if (player == null)
-        {
-            ScreenReader.Say(Loc.Get("game.not_running"));
-            return;
-        }
-
-        var birds = new List<string>();
-        if (player.BirdCards != null)
-        {
-            for (int i = 0; i < player.BirdCards.Count; i++)
-                birds.Add(BirdName(player.BirdCards[i]));
-        }
-
-        var bonuses = new List<string>();
-        if (player.BonusCards != null)
-        {
-            for (int i = 0; i < player.BonusCards.Count; i++)
-                bonuses.Add(BonusName(player.BonusCards[i]));
-        }
-
-        ScreenReader.Say(Loc.Get("game.hand",
-            birds.Count == 0 ? Loc.Get("game.nothing") : string.Join(", ", birds),
-            bonuses.Count == 0 ? Loc.Get("game.nothing") : string.Join(", ", bonuses)));
-    }
-
-    public static void Round()
-    {
-        Rules.GameState state = GameStateCache.State;
-        Rules.Player player = GameStateCache.LocalPlayer;
-        if (state == null || player == null)
-        {
-            ScreenReader.Say(Loc.Get("game.not_running"));
-            return;
-        }
-
-        Rules.Player current = state.GetPlayer(state.CurrentPlayerID);
-        string currentName = current == null ? "-" : PlayerName(current);
-        ScreenReader.Say(Loc.Get("game.round", state.RoundsCounter + 1, player.TokensLeft, currentName));
-    }
-
-    public static void Opponents()
-    {
-        Rules.GameState state = GameStateCache.State;
-        if (state?.Players == null)
-        {
-            ScreenReader.Say(Loc.Get("game.not_running"));
-            return;
-        }
-
-        var parts = new List<string>();
-        for (int i = 0; i < state.Players.Count; i++)
-        {
-            Rules.Player player = state.Players[i];
-            if (player == null || player.IsLocalPlayer())
-                continue;
-
-            int forest = player.GetAllBirdsInHabitat(ActionType.GainFood)?.Count ?? 0;
-            int grass = player.GetAllBirdsInHabitat(ActionType.LayEggs)?.Count ?? 0;
-            int wetland = player.GetAllBirdsInHabitat(ActionType.DrawBirds)?.Count ?? 0;
-            string food = FoodList(player._pf);
-            parts.Add(Loc.Get("game.opponent", PlayerName(player), forest, grass, wetland,
-                food.Length == 0 ? Loc.Get("game.no_food") : food, player.BirdCards?.Count ?? 0, player.TokensLeft));
-        }
-
-        ScreenReader.Say(parts.Count == 0 ? Loc.Get("game.no_opponents") : UiText.JoinSentences(parts));
-    }
-
-    /// <summary>The four round goals from the HUD goal board, using the goal tiles' tooltips where available.</summary>
-    public static void Goals()
-    {
-        var parts = new List<string>();
-        for (int round = 1; round <= 4; round++)
-        {
-            UnityEngine.GameObject slot = UnityEngine.GameObject.Find($"GAME/Game_Canvas/HabitatsNotchPadding/GoalsMiniBoard_HUD/TokenSlot{round}");
-            if (slot == null)
-                continue;
-
-            List<string> texts = Tooltips.TextsFor(slot, includeParents: false);
-            if (texts.Count == 0)
-                texts = UiText.CollectTexts(slot);
-            parts.Add(Loc.Get("game.goal", round, texts.Count == 0 ? Loc.Get("game.nothing") : string.Join(", ", texts)));
-        }
-
-        ScreenReader.Say(parts.Count == 0 ? Loc.Get("game.not_running") : UiText.JoinSentences(parts));
+        List<string> texts = Tooltips.TextsFor(slot, includeParents: false);
+        if (texts.Count == 0)
+            texts = UiText.CollectTexts(slot);
+        return string.Join(", ", texts);
     }
 
     public static string PlayerName(Rules.Player player)
@@ -210,6 +162,21 @@ internal static class GameReader
     public static string BonusName(int id) => UiText.HumanizeTypeName(((BonusCardName)id).ToString());
 
     /// <summary>"2 Fisch, 1 Samen" from a food record; empty if there is none.</summary>
+    public static string FoodTypeName(FoodType type) => type switch
+    {
+        FoodType.Any => Loc.Get("icon.food_any"),
+        FoodType.Invertebrate => Loc.Get("icon.food_invertebrate"),
+        FoodType.Seed => Loc.Get("icon.food_seed"),
+        FoodType.Fruit => Loc.Get("icon.food_fruit"),
+        FoodType.Fish => Loc.Get("icon.food_fish"),
+        FoodType.Rodent => Loc.Get("icon.food_rodent"),
+        FoodType.InvertebrateSeed => Loc.Get("icon.food_invertebrate_seed"),
+        FoodType.Nectar => Loc.Get("icon.food_nectar"),
+        FoodType.NectarFruit => Loc.Get("icon.food_nectar_fruit"),
+        FoodType.NectarSeed => Loc.Get("icon.food_nectar_seed"),
+        _ => Loc.Get("icon.food_none"),
+    };
+
     public static string FoodList(Rules.Food food)
     {
         if (food == null)

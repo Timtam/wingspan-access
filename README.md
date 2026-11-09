@@ -21,14 +21,18 @@ The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 - **Follows the game's language.** The game's own texts are read in whatever language the game uses. The
   mod's own messages are available in English and German; other languages fall back to English.
 - **Game tooltips on demand.** Descriptions that sighted players see on mouse-over can be read with a key.
-- **Cards read in full.** A focused bird card is read with its name, points, habitats, food cost, nest,
-  egg limit, wingspan and power. Birds on your board also report their eggs, cached food and tucked
-  cards. Cards in your hand tell you whether they can be played in the habitat you are looking at.
-- **Game state on demand.** The number keys read your habitats, the birdfeeder, the bird tray, your
-  supply, your hand, the round and the other players.
-- **Turn announcements.** Each task is announced, for example "Choose 5 (1/5)" or "1 of 2 eggs laid". So
-  are the habitat you are looking at and the cost of the bird you are playing. When another player
-  finishes their turn, the mod summarizes what they did.
+- **Cards read in full.** A bird card is read with its name, points, habitats, food cost, nest, egg
+  limit, wingspan and power, one line at a time if you like. Birds on a board also report their eggs,
+  cached food and tucked cards. Cards in your hand tell you where the rules let you play them now.
+- **Zones.** The number keys open the parts of the game: your habitats, the birdfeeder, the bird
+  tray, your supply, your hand, the round, the other players and the round goals. Inside every zone
+  the arrow keys work the same way.
+- **Turn announcements.** Each task is announced, for example "Choose 5 (1/5)" or "1 of 2 eggs laid",
+  with the food you may take, the cards left to draw, the cost and payment of the bird you are playing
+  and the card you drew. When another player finishes their turn, the mod summarizes what they did.
+- **Round and game end.** Round end powers, the goal board with everyone's standings and the final
+  ranking with points per category are read out.
+- **Message history.** The last game messages can be read again at any time.
 
 ## Requirements
 
@@ -61,48 +65,72 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 
 | Key | Action |
 | --- | --- |
-| Arrow keys | Move through menus, cards and birds. In the game mode popup, Left and Right switch the mode |
-| Enter | Select (gamepad A): activate a button, mark a card, take a die, lay an egg |
+| Arrow keys | Move through menus and through the choices of the current task. Inside a zone, see below |
+| Enter | Select (gamepad A): activate a button, mark a card, take a die, lay an egg, play the card in your hand |
 | Space | Continue or confirm (gamepad Y): start the game, confirm a selection or payment |
-| Escape | Back (gamepad B) |
+| Escape | Back (gamepad B). Inside a zone: back to the game |
 | Shift+F10 or Applications key | Context action (gamepad X) |
-| Page Up / Page Down | Previous / next habitat |
-| Control+Page Up / Control+Page Down | Show other players; switch pages in some popups |
 | Tab / Shift+Tab | Next / previous card |
-| H | Open or close your hand (to play a bird) |
-| T | Show the bird tray |
-| G | Show the round goals |
-| O | Habitat overview |
+| Page Up / Page Down | Read the previous / next message again (see "Message history") |
+| Control+Page Up / Control+Page Down | Read the first / latest message |
 | F10 | Pause menu |
 | F1 | List the keys |
 | F2 | Read the whole screen, including the current task |
 | F3 | Read the description (tooltip) of the selected element |
 | F11 | Mod status: speech output, language, current screen |
 
-Reading the game state:
+### Zones
 
-| Key | Reads |
+During a game the number keys open zones. Inside a zone the keys are always the same: Left and
+Right move between its items, Home and End jump to the first and last one, Up and Down read the
+selected item line by line (for a bird: name, eggs and cards on it, points, habitats, food cost,
+nest, egg limit, wingspan, power, where it can be played), Escape goes back to the game. Pressing
+the zone key again repeats the overview. A new screen or task closes the zone, so the arrow keys
+work for the game's own choices again.
+
+| Key | Zone |
 | --- | --- |
-| 1, 2, 3 | Your forest, grassland, wetland: birds with eggs, cached food and tucked cards |
-| 4 | Birdfeeder |
-| 5 | Bird tray (face-up cards) |
-| 6 | Your food supply and the number of cards in your hand |
-| 7 | The bird cards and bonus cards in your hand |
-| 8 | Round, actions left, current player |
-| 9 | The other players: birds per habitat, food, hand size, actions left |
-| 0 | Round goals |
+| 1, 2, 3 | Forest, grassland, wetland: the birds in that habitat. Also moves the view there, so Enter takes that habitat's action |
+| 4 | Birdfeeder: the dice; while you take food, these are the dice to choose |
+| 5 | Bird tray: the face-up cards and the deck |
+| 6 | Your supply: food and the number of cards in your hand |
+| 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card |
+| 8 | Status: round, your actions left, whose turn it is |
+| 9 | Players with their birds, food and cards. Enter on a player makes 1 to 3 read that player's board until you leave the zone |
+| 0 | Round goals with the standings; Up and Down also read the game's explanation of the goal |
+
+When the current task lets you choose the item under the cursor (a bird to lay an egg on, a card to
+draw, a die to take), moving the cursor selects it in the game as well, so Enter acts on it.
 
 When the game shows controller hints, the mod reads them as the matching keyboard keys.
+
+### Message history
+
+The mod keeps the last 200 game messages: turn announcements, what the other players did, tasks,
+drawn cards, results. Page Up and Page Down step back and forth through them, Control+Page Up and
+Control+Page Down jump to the first and the latest message. A new message puts you back at the end.
+Announcements of the selected element, zones and information you asked for (F-keys) are not kept.
 
 ### Playing a turn
 
 1. A new turn is announced ("Your turn. Round 1 of 4. 8 turns left"). Press Enter.
-2. Choose an action. Page Up and Page Down move between forest (gain food), grassland (lay eggs) and
-   wetland (draw cards); Enter takes the action of the habitat you are in. To play a bird, press H to
-   open your hand, choose a card with the arrow keys and press Enter.
-3. In the task that follows, Enter marks things (cards, dice, birds for eggs) and Space confirms.
-   Sometimes the game needs a second press of Space.
-4. When the other players have moved, the mod tells you what they did.
+2. Choose an action. The habitat in view is announced. 1, 2 and 3 move to forest (gain food),
+   grassland (lay eggs) and wetland (draw cards); Enter takes the action of the habitat you are in.
+3. To play a bird, first choose its habitat with 1, 2 or 3, then press 7 for your hand, choose a card
+   with Left and Right (each card says where the rules let you play it now) and press Enter. The mod
+   reads the cost and the proposed payment; Space accepts it, the Change button lets you pick the
+   food yourself (Enter on a picked food takes it out again). If the place costs eggs, pick the
+   birds to take them from with Enter. Escape closes the hand again.
+4. In the task that follows, Enter marks things (cards, dice, birds for eggs) and Space confirms.
+   A card drawn from the deck is shown first: one Space puts it into your hand, the next confirms.
+   The mod says how much food you may take, how many cards are left to draw and how many eggs to lay.
+5. When the other players have moved, the mod tells you what they did. Bird powers that give you an
+   extra action between turns are announced as "out-of-turn action".
+6. At the end of a round the mod names the birds whose "round end" powers you can activate, then
+   reads the goal board. At the end of the game it reads the ranking with the points per category.
+
+In the play menu, "Your games" lists saved games with mode, round, turns left, players and when the
+game was started; Enter continues a game.
 
 ## Uninstalling
 

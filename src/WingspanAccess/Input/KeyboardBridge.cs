@@ -18,7 +18,6 @@ internal static class KeyboardBridge
     {
         public KeyCode Key;
         public bool Shift;
-        public bool Control;
         public Func<int> Button;
         public int FramesLeft;
     }
@@ -36,16 +35,8 @@ internal static class KeyboardBridge
         new Binding { Key = KeyCode.Menu, Button = () => VirtualGamepad.Buttons.Context },           // X
         new Binding { Key = KeyCode.F10, Shift = true, Button = () => VirtualGamepad.Buttons.Context }, // X
         new Binding { Key = KeyCode.F10, Button = () => VirtualGamepad.Buttons.Pause },              // Start/Plus
-        new Binding { Key = KeyCode.PageUp, Button = () => VirtualGamepad.Buttons.HabitatUp },       // LB
-        new Binding { Key = KeyCode.PageDown, Button = () => VirtualGamepad.Buttons.HabitatDown },   // RB
-        new Binding { Key = KeyCode.PageUp, Control = true, Button = () => VirtualGamepad.Buttons.PreviewPlayerLeft },   // LT
-        new Binding { Key = KeyCode.PageDown, Control = true, Button = () => VirtualGamepad.Buttons.PreviewPlayerRight }, // RT
         new Binding { Key = KeyCode.Tab, Button = () => VirtualGamepad.Buttons.NextCard },
         new Binding { Key = KeyCode.Tab, Shift = true, Button = () => VirtualGamepad.Buttons.PreviousCard },
-        new Binding { Key = KeyCode.H, Button = () => VirtualGamepad.Buttons.ToggleCardPreview },        // D-pad up: hand
-        new Binding { Key = KeyCode.T, Button = () => VirtualGamepad.Buttons.ToggleDiscards },           // D-pad down: tray preview
-        new Binding { Key = KeyCode.G, Button = () => VirtualGamepad.Buttons.ToggleGoals },              // Minus: round goals
-        new Binding { Key = KeyCode.O, Button = () => VirtualGamepad.Buttons.ToggleHabitatsOverview },   // overview
     };
 
     private static int _upFrames, _downFrames, _leftFrames, _rightFrames;
@@ -57,9 +48,29 @@ internal static class KeyboardBridge
     private static readonly Dictionary<string, (Func<int> Left, Func<int> Right)> PagingScreens = new()
     {
         ["CustomGameChooseMode_Popup"] = (() => VirtualGamepad.Buttons.PreviewPlayerLeft, () => VirtualGamepad.Buttons.PreviewPlayerRight),
+        // Goal board and nectar board tabs.
+        ["GoalAndNectarMat_Screen"] = (() => VirtualGamepad.Buttons.PreviewPlayerLeft, () => VirtualGamepad.Buttons.PreviewPlayerRight),
     };
 
     private static int _pageLeftFrames, _pageRightFrames;
+
+    /// <summary>Buttons the mod presses by itself (opening the hand, closing it again), with frames left.</summary>
+    private static readonly Dictionary<int, int> OneShots = new();
+
+    /// <summary>Every button the bridge drives, so released buttons are reset as well.</summary>
+    private static IEnumerable<int> ManagedButtons()
+    {
+        foreach (Binding binding in ButtonBindings)
+            yield return binding.Button();
+        yield return VirtualGamepad.Buttons.PreviewPlayerLeft;
+        yield return VirtualGamepad.Buttons.PreviewPlayerRight;
+        yield return VirtualGamepad.Buttons.ToggleCardPreview;
+        yield return VirtualGamepad.Buttons.HabitatUp;
+        yield return VirtualGamepad.Buttons.HabitatDown;
+    }
+
+    /// <summary>Presses a gamepad button once (held for a few frames so Rewired sees it).</summary>
+    public static void Press(int button) => OneShots[button] = MinimumHoldFrames + 1;
 
     public static void Tick()
     {
@@ -79,10 +90,19 @@ internal static class KeyboardBridge
         // A modifier pressed and released within one frame (fast typing, synthetic input) still counts.
         bool shift = Modifier(KeyCode.LeftShift) || Modifier(KeyCode.RightShift);
         bool control = Modifier(KeyCode.LeftControl) || Modifier(KeyCode.RightControl);
+        // While a zone is open the arrows, Escape (and for some zones Enter) belong to the zone.
+        bool zone = UI.Zones.ZoneNavigator.IsActive;
         var pressedButtons = new HashSet<int>();
         foreach (Binding binding in ButtonBindings)
         {
-            bool modifiersMatch = binding.Shift == shift && binding.Control == control;
+            if (zone && (binding.Key == KeyCode.Escape ||
+                ((binding.Key == KeyCode.Return || binding.Key == KeyCode.KeypadEnter) && UI.Zones.ZoneNavigator.ConsumesEnter)))
+            {
+                binding.FramesLeft = 0;
+                continue;
+            }
+
+            bool modifiersMatch = binding.Shift == shift && !control;
             if (UnityEngine.Input.GetKeyDown(binding.Key) && modifiersMatch)
                 binding.FramesLeft = MinimumHoldFrames;
 
@@ -93,10 +113,24 @@ internal static class KeyboardBridge
                 pressedButtons.Add(binding.Button());
         }
 
-        float x;
-        if (paging)
+        foreach (int button in new List<int>(OneShots.Keys))
         {
-            var (left, right) = PagingScreens[topType];
+            pressedButtons.Add(button);
+            if (--OneShots[button] <= 0)
+                OneShots.Remove(button);
+        }
+
+        float x;
+        if (zone)
+        {
+            x = 0f;
+        }
+        else if (paging || HandCardSelected())
+        {
+            // Carousels page with the shoulder buttons; the hand moves between cards like Tab does.
+            (Func<int> left, Func<int> right) = paging
+                ? PagingScreens[topType]
+                : (() => VirtualGamepad.Buttons.PreviousCard, () => VirtualGamepad.Buttons.NextCard);
             if (Held(KeyCode.LeftArrow, ref _pageLeftFrames) > 0f && !shift && !control)
                 pressedButtons.Add(left());
             if (Held(KeyCode.RightArrow, ref _pageRightFrames) > 0f && !shift && !control)
@@ -108,15 +142,21 @@ internal static class KeyboardBridge
             x = Held(KeyCode.RightArrow, ref _rightFrames) - Held(KeyCode.LeftArrow, ref _leftFrames);
         }
 
-        foreach (Binding binding in ButtonBindings)
-        {
-            int button = binding.Button();
+        foreach (int button in ManagedButtons())
             VirtualGamepad.SetButton(button, pressedButtons.Contains(button));
-        }
 
-        float y = Held(KeyCode.UpArrow, ref _upFrames) - Held(KeyCode.DownArrow, ref _downFrames);
+        float y = zone ? 0f : Held(KeyCode.UpArrow, ref _upFrames) - Held(KeyCode.DownArrow, ref _downFrames);
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationX, x);
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationY, y);
+    }
+
+    /// <summary>Whether the hand is open with one of its cards selected (the card's parent is "PlayerHand").</summary>
+    private static bool HandCardSelected()
+    {
+        EventSystem eventSystem = EventSystem.current;
+        GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
+        Transform parent = selected == null ? null : selected.transform.parent;
+        return parent != null && parent.name == "PlayerHand" && UI.HandAnnouncer.IsOpen();
     }
 
     private static bool Modifier(KeyCode key) => UnityEngine.Input.GetKey(key) || UnityEngine.Input.GetKeyDown(key) || UnityEngine.Input.GetKeyUp(key);
@@ -134,10 +174,10 @@ internal static class KeyboardBridge
     private static void ReleaseAll()
     {
         foreach (Binding binding in ButtonBindings)
-        {
             binding.FramesLeft = 0;
-            VirtualGamepad.SetButton(binding.Button(), false);
-        }
+        OneShots.Clear();
+        foreach (int button in ManagedButtons())
+            VirtualGamepad.SetButton(button, false);
 
         _upFrames = _downFrames = _leftFrames = _rightFrames = 0;
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationX, 0f);

@@ -53,10 +53,12 @@ internal static class ScreenReader
     /// Speaks and brailles a message. Messages spoken within the same frame are queued instead of
     /// interrupting each other, so "screen name" and "selected element" are both heard.
     /// </summary>
-    public static void Say(string text, bool interrupt = true)
+    public static void Say(string text, bool interrupt = true, bool history = true)
     {
         if (string.IsNullOrWhiteSpace(text))
             return;
+        if (history)
+            MessageHistory.Add(text);
 
         int frame = UnityEngine.Time.frameCount;
         if (frame == _lastSpeechFrame)
@@ -71,6 +73,9 @@ internal static class ScreenReader
         if (error != 0)
             _log?.LogWarning($"Prism output failed: {ErrorString(error)} ({error})");
     }
+
+    /// <summary>Speaks something that is not kept in the message history (focus, information asked for).</summary>
+    public static void SayTransient(string text, bool interrupt = true) => Say(text, interrupt, history: false);
 
     public static void Stop()
     {

@@ -27,7 +27,9 @@ internal static class CardDescriber
         if (bird != null && (int)bird.ID <= 0)
             return Loc.Get("card.deck");
 
-        return DescribeCard(view);
+        string description = DescribeCard(view);
+        bool? marked = Game.DrawAnnouncer.IsMarked(view);
+        return marked == true ? $"{Loc.Get("card.marked")}, {description}" : description;
     }
 
     public static CardView FindCardView(GameObject selected)
@@ -59,48 +61,29 @@ internal static class CardDescriber
         return string.Join(", ", UiText.CollectTexts(view.gameObject));
     }
 
-    public static string DescribeBird(BaseBirdCardView view)
+    public static string DescribeBird(BaseBirdCardView view) => string.Join(", ", BirdLines(view));
+
+    /// <summary>
+    /// A bird card as separate lines: name, board state (eggs, food, tucked cards), points, habitats,
+    /// food cost, nest and egg limit, wingspan, power and, for cards in the hand, where it can be played.
+    /// </summary>
+    public static List<string> BirdLines(BaseBirdCardView view)
     {
         Dictionary<string, string> texts = NamedTexts(view.gameObject);
+        BirdData data = Data(view.ID);
         var parts = new List<string>();
-        Add(parts, Get(texts, "Name_TMP"));
-
-        BirdData data = null;
-        try
-        {
-            data = BirdDatabase.Get(view.ID);
-        }
-        catch (System.Exception e)
-        {
-            Plugin.Logger.LogWarning($"BirdDatabase.Get({view.ID}) failed: {e.Message}");
-        }
+        Add(parts, Get(texts, "Name_TMP") ?? Game.GameReader.BirdName((int)view.ID));
+        Add(parts, BoardState(view));
 
         string points = Get(texts, "VP_TMP") ?? data?.VictoryPoints.GetDecrypted().ToString();
         if (points != null)
             parts.Add(int.TryParse(points, out int pointCount) ? Loc.Count("card.points", pointCount) : Loc.Get("card.points", points));
 
-        if (data != null)
-        {
-            var habitats = new List<string>();
-            if (data.HabitatForest.GetDecrypted())
-                habitats.Add(Loc.Get("icon.habitat_forest"));
-            if (data.HabitatGrass.GetDecrypted())
-                habitats.Add(Loc.Get("icon.habitat_grassland"));
-            if (data.HabitatWetlands.GetDecrypted())
-                habitats.Add(Loc.Get("icon.habitat_wetland"));
-            if (habitats.Count > 0)
-                parts.Add(Loc.Get("card.habitats", string.Join(", ", habitats)));
-        }
-
+        Add(parts, Habitats(data));
         string food = Get(texts, "Food_TMP");
         if (food != null)
             parts.Add(Loc.Get("card.food", food));
-
-        if (data != null)
-        {
-            parts.Add(Loc.Get("card.nest", Loc.Get("nest." + data.NestType)));
-            parts.Add(Loc.Get("card.eggs", data.EggLimit.GetDecrypted()));
-        }
+        AddNest(parts, data);
 
         string wingspan = Get(texts, "Wingspan_TMP");
         if (wingspan != null)
@@ -111,20 +94,114 @@ internal static class CardDescriber
         if (power != null)
             parts.Add(header == null ? power : $"{header} {power}");
 
-        string boardState = BoardState(view);
-        if (boardState != null)
-            parts.Insert(1, boardState);
+        // Cards in the hand: where the rules let you play the bird now (habitat, space, food and eggs).
+        if (data != null && view.TryCast<BirdCardView>() != null && UiText.PathOf(view.gameObject).Contains("PlayerHand"))
+            Add(parts, Playability(data));
 
-        // Cards in the hand: say whether the game would let you play it in the habitat in view.
-        BirdCardView handCard = view.TryCast<BirdCardView>();
-        if (handCard != null && UIGod.I != null && UiText.PathOf(view.gameObject).Contains("PlayerHand"))
+        return parts;
+    }
+
+    /// <summary>
+    /// Lines for a bird without a card on screen (e.g. on another player's board): what the bird
+    /// database and the game state know. The power text is only printed on the card.
+    /// </summary>
+    public static List<string> BirdLines(int id, Rules.Bird bird)
+    {
+        BirdData data = Data((BirdName)id);
+        var parts = new List<string> { Game.GameReader.BirdName(id) };
+        if (bird != null)
+            Add(parts, BoardState(bird, data));
+        if (data != null)
+            parts.Add(Loc.Count("card.points", data.VictoryPoints.GetDecrypted()));
+        Add(parts, Habitats(data));
+        if (data != null)
         {
-            bool playable = UIGod.I.CanPlayInCurrentHabitat(handCard);
-            parts.Add(Loc.Get(playable ? "card.playable" : "card.not_playable",
-                Loc.Get("habitat." + UIGod.I.GetCurrentHabitat())));
+            string food = UiText.Clean(data.StringifyFood());
+            if (food.Length > 0)
+                parts.Add(Loc.Get("card.food", food));
         }
 
-        return string.Join(", ", parts);
+        AddNest(parts, data);
+        if (data != null)
+            parts.Add(Loc.Get("card.wingspan", $"{data.WingspanCM.GetDecrypted()}cm"));
+        return parts;
+    }
+
+    /// <summary>The card view of a bird on the local board, if it is in the scene.</summary>
+    public static BaseBirdCardView FindBoardView(Rules.Bird bird)
+    {
+        if (bird == null)
+            return null;
+        foreach (BirdSlot slot in Object.FindObjectsOfType<BirdSlot>())
+        {
+            BaseBirdCardView card = slot.Card;
+            if (card != null && card.GameStateBird != null && card.GameStateBird.Pointer == bird.Pointer)
+                return card;
+        }
+
+        return null;
+    }
+
+    private static BirdData Data(BirdName id)
+    {
+        try
+        {
+            return (int)id > 0 ? BirdDatabase.Get(id) : null;
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"BirdDatabase.Get({id}) failed: {e.Message}");
+            return null;
+        }
+    }
+
+    private static string Habitats(BirdData data)
+    {
+        if (data == null)
+            return null;
+        var habitats = new List<string>();
+        if (data.HabitatForest.GetDecrypted())
+            habitats.Add(Loc.Get("icon.habitat_forest"));
+        if (data.HabitatGrass.GetDecrypted())
+            habitats.Add(Loc.Get("icon.habitat_grassland"));
+        if (data.HabitatWetlands.GetDecrypted())
+            habitats.Add(Loc.Get("icon.habitat_wetland"));
+        return habitats.Count == 0 ? null : Loc.Get("card.habitats", string.Join(", ", habitats));
+    }
+
+    private static void AddNest(List<string> parts, BirdData data)
+    {
+        if (data == null)
+            return;
+        parts.Add(Loc.Get("card.nest", Loc.Get("nest." + data.NestType)));
+        parts.Add(Loc.Count("card.eggs", data.EggLimit.GetDecrypted()));
+    }
+
+    private static string Playability(BirdData data)
+    {
+        Rules.Player player = Game.GameStateCache.LocalPlayer;
+        if (player == null)
+            return null;
+
+        CanPlayReturn result;
+        try
+        {
+            result = Rulebook.CanPlay(data, player, null, new Il2CppSystem.Nullable<ActionType>(), 0);
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Rulebook.CanPlay failed: {e.Message}");
+            return null;
+        }
+
+        var habitats = new List<string>();
+        if (result.CanPlayInForest)
+            habitats.Add(Loc.Get("icon.habitat_forest"));
+        if (result.CanPlayInGrass)
+            habitats.Add(Loc.Get("icon.habitat_grassland"));
+        if (result.CanPlayInWetlands)
+            habitats.Add(Loc.Get("icon.habitat_wetland"));
+        return habitats.Count == 0 ? Loc.Get("card.not_playable_now") : Loc.Get("card.playable_in", string.Join(", ", habitats));
     }
 
     /// <summary>
@@ -134,20 +211,19 @@ internal static class CardDescriber
     public static string BoardState(BaseBirdCardView view)
     {
         Rules.Bird bird = view.GameStateBird?.TryCast<Rules.Bird>();
+        return bird == null ? null : BoardState(bird, Data(view.ID));
+    }
+
+    /// <summary>Eggs (of the limit), cached food and tucked cards of a bird on a board.</summary>
+    public static string BoardState(Rules.Bird bird, BirdData data)
+    {
         if (bird == null)
             return null;
 
-        int limit = 0;
-        try
-        {
-            limit = BirdDatabase.Get(view.ID).EggLimit.GetDecrypted();
-        }
-        catch (System.Exception)
-        {
-            // the limit is optional information
-        }
+        int limit = data == null ? 0 : data.EggLimit.GetDecrypted();
 
-        var parts = new List<string> { Loc.Get("card.eggs_on_bird", bird.Eggs, limit) };
+        // {0} is the limit, so "card.eggs_on_bird.one" fits a limit of one egg.
+        var parts = new List<string> { Loc.Count("card.eggs_on_bird", limit, bird.Eggs) };
         if (bird.CachedFoodCount > 0)
             parts.Add(Loc.Get("game.cached", Game.GameReader.FoodList(bird.CachedFood)));
         if (bird.TuckedCardsCount > 0)
@@ -155,7 +231,10 @@ internal static class CardDescriber
         return string.Join(", ", parts);
     }
 
-    public static string DescribeBonus(BonusCardView view)
+    public static string DescribeBonus(BonusCardView view) => UiText.JoinSentences(BonusLines(view));
+
+    /// <summary>A bonus card as lines: name, condition, details, scoring, share of players, current score.</summary>
+    public static List<string> BonusLines(BonusCardView view)
     {
         var parts = new List<string>();
         var visibility = new Visibility(view.transform);
@@ -187,7 +266,40 @@ internal static class CardDescriber
         Add(parts, percent);
         if (total != null)
             parts.Add(Loc.Get("card.current", total));
-        return UiText.JoinSentences(parts);
+        return parts;
+    }
+
+    /// <summary>A hand card in short: a bird's name, points and where it can be played; a bonus card's name.</summary>
+    public static string HandSummary(CardView view)
+    {
+        BirdCardView bird = view.TryCast<BirdCardView>();
+        if (bird != null)
+        {
+            BirdData data = Data(bird.ID);
+            var parts = new List<string> { Game.GameReader.BirdName((int)bird.ID) };
+            if (data != null)
+            {
+                parts.Add(Loc.Count("card.points", data.VictoryPoints.GetDecrypted()));
+                Add(parts, Playability(data));
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        List<string> lines = CardLines(view);
+        return lines.Count == 0 ? string.Empty : lines[0];
+    }
+
+    /// <summary>Detail lines for any card view.</summary>
+    public static List<string> CardLines(CardView view)
+    {
+        BaseBirdCardView bird = view.TryCast<BaseBirdCardView>();
+        if (bird != null)
+            return (int)bird.ID > 0 ? BirdLines(bird) : new List<string> { Loc.Get("card.deck") };
+        BonusCardView bonus = view.TryCast<BonusCardView>();
+        if (bonus != null)
+            return BonusLines(bonus);
+        return UiText.CollectTexts(view.gameObject);
     }
 
     /// <summary>A bonus card scoring row: its condition label (e.g. "5 - 6 Vögel:", "pro Vogel") and the points.</summary>

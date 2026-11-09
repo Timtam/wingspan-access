@@ -31,7 +31,7 @@ internal static class EggDecisionAnnouncer
         {
             _decisionId = decision.GetInstanceID();
             _lastLaid = laid;
-            ScreenReader.Say(Loc.Get("eggs.to_lay", total), interrupt: false);
+            ScreenReader.Say(Loc.Count("eggs.to_lay", total), interrupt: false);
             return;
         }
 
