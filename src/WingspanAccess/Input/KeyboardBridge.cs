@@ -187,7 +187,7 @@ internal static class KeyboardBridge
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationY, 0f);
     }
 
-    private static bool TextFieldHasFocus()
+    public static bool TextFieldHasFocus()
     {
         EventSystem eventSystem = EventSystem.current;
         GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;

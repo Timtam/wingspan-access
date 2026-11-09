@@ -86,27 +86,62 @@ internal static class UiText
     }
 
     /// <summary>
-    /// "2 of 5" among the interactive siblings of the same kind (toggle, button, slider ...),
-    /// if there are at least two.
+    /// "2 of 5" among the interactive siblings (buttons, toggles, sliders ...), if there are at least two.
     /// </summary>
     public static string Position(GameObject target)
     {
         Transform parent = target.transform.parent;
-        UnityEngine.UI.Selectable own = target.GetComponent<UnityEngine.UI.Selectable>();
-        if (parent == null || own == null)
+        if (parent == null || target.GetComponent<UnityEngine.UI.Selectable>() == null)
             return null;
 
-        string kind = own.GetIl2CppType().Name;
+        string across = PositionAcrossPanels(target.transform);
+        if (across != null)
+            return across;
+
         int index = 0, count = 0;
         for (int i = 0; i < parent.childCount; i++)
         {
             Transform child = parent.GetChild(i);
             UnityEngine.UI.Selectable selectable = child.GetComponent<UnityEngine.UI.Selectable>();
-            if (selectable == null || !child.gameObject.activeInHierarchy || !selectable.interactable ||
-                selectable.GetIl2CppType().Name != kind)
+            if (selectable == null || !child.gameObject.activeInHierarchy || !selectable.interactable)
                 continue;
             count++;
             if (child == target.transform)
+                index = count;
+        }
+
+        return count >= 2 && index > 0 ? Loc.Get("position", index, count) : null;
+    }
+
+    private static readonly Regex InstanceSuffix = new(@"\s*(\(\d+\)|\(Clone\))$");
+
+    /// <summary>
+    /// Copies of one panel side by side (the player columns of the custom game setup, "Panel (1)" to
+    /// "Panel (5)"): the control's position among the same control in all copies, e.g. "2 of 5",
+    /// instead of its place inside its own small panel.
+    /// </summary>
+    private static string PositionAcrossPanels(Transform control)
+    {
+        Transform panel = control.parent;
+        Transform row = panel == null ? null : panel.parent;
+        if (row == null)
+            return null;
+        string family = InstanceSuffix.Replace(panel.name, string.Empty);
+        if (family == panel.name)
+            return null;
+
+        int index = 0, count = 0;
+        for (int i = 0; i < row.childCount; i++)
+        {
+            Transform sibling = row.GetChild(i);
+            if (!sibling.gameObject.activeInHierarchy || InstanceSuffix.Replace(sibling.name, string.Empty) != family)
+                continue;
+            Transform same = sibling.Find(control.name);
+            UnityEngine.UI.Selectable selectable = same == null ? null : same.GetComponent<UnityEngine.UI.Selectable>();
+            if (selectable == null || !same.gameObject.activeInHierarchy)
+                continue;
+            count++;
+            if (sibling == panel)
                 index = count;
         }
 
@@ -269,7 +304,7 @@ internal static class UiText
     private static readonly Regex RepeatedSprite = new(
         @"<sprite[^>]*?name=""?([^"">\s]+)""?[^>]*>(?:\s*<sprite[^>]*?name=""?\1""?[^>]*>)+", RegexOptions.IgnoreCase);
     private static readonly Regex CountedSprite = new(
-        @"(\b(?:[2-9]|[1-9]\d+|alle|beide|mehrere|einige|viele|mehr|weitere|all|both|several|some|many|more)\s*)<sprite[^>]*?name=""?([^"">\s]+)""?[^>]*>",
+        @"(\b(?:0|[2-9]|[1-9]\d+|alle|beide|mehrere|einige|viele|mehr|weitere|all|both|several|some|many|more)\s*)<sprite[^>]*?name=""?([^"">\s]+)""?[^>]*>",
         RegexOptions.IgnoreCase);
     private const char IconStart = '\u0001';
     private const char IconEnd = '\u0002';

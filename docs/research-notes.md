@@ -396,3 +396,19 @@ Escape leaves. Enter, Space and Tab stay with the game. The key table is at the 
   leave the game in mouse/keyboard mode.
 - The key layout is in `Input/KeyboardBridge.cs` and in the README. Gameplay keys (habitats, cards,
   players) are provisional until Phase 2.
+
+### Bird facts and sounds (2026-11-09)
+
+- `BirdData` has `LatinName` and the continent flags (`NorthAmerica`, `SouthAmerica`, `Europe`,
+  `Africa`, `Asia`, `Australia`, encrypted bools). The trivia text is a localization term
+  `BirdCards/Fluffs/<id>` next to the name term `BirdCards/Names/<id>`
+  (`TextLocalizationHelper.GetBirdCardNameTerm`); `BirdCardView.BirdTrivia` is its `Localize`.
+  The game calls the trivia "fluffs" (GamepadController.ToggleFluffs shows them on the cards).
+- `BirdAudioManager.I.PlayMain(BirdName)` plays a bird's call and returns a length (2 s in all tests).
+  `BirdCardView.PlayVoiceOver()` plays the spoken trivia (it loads the voice-overs on demand);
+  `BirdAudioManager.PlayVoiceOver(id, forcePlay, isRetry)` is the fallback without a card view.
+  Whether the sounds are audible was not checked by the mod's tests.
+- The bird atlas in the main menu (`AtlasGamepadScreen`, `BirdAtlasManager`) has song and
+  voice-over buttons (`BirdSongButton`, `BirdVOButton`); it is not made accessible yet.
+- With all expansions (521 bird cards) a game against the AI started and played: start selection,
+  nectar in the supply and payments, opponent summaries with nectar.

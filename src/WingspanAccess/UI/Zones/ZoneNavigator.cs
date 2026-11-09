@@ -46,6 +46,18 @@ internal static class ZoneNavigator
 
     public static bool IsActive => _zone != null;
 
+    /// <summary>The bird under the cursor of the open zone, 0 if there is none.</summary>
+    public static int CurrentBirdId
+    {
+        get
+        {
+            if (_zone == null || _index < 0)
+                return 0;
+            List<ZoneItem> items = _zone.Items();
+            return _index < items.Count ? items[_index].BirdId : 0;
+        }
+    }
+
     /// <summary>Whether Enter belongs to the zone (choosing a player) instead of the game.</summary>
     public static bool ConsumesEnter => _zone != null && _zone.HandlesEnter;
 

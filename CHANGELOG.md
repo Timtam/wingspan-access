@@ -33,6 +33,8 @@ release workflow turns that section into the next version and uses it as the rel
 - X is the context action (trade a card, egg or food in a habitat, reroll), I shows the game's
   tooltips, H hides the interface, G opens the goal board and O the overview of the habitats.
 - Zone 9: Enter on a player makes 1 to 3 read that player's board; Enter on "You" switches back.
+- Bird facts: the zones read each bird's Latin name, the continents it lives on and the trivia text
+  of the card. S plays the bird's call, V the game's spoken trivia about it.
 - Speech and braille through Prism (NVDA, JAWS and other screen readers, SAPI fallback). The mod
   follows the game's language; its own messages are in English and German.
 - License: GNU General Public License, version 3 or later.

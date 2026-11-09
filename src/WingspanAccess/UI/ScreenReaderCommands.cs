@@ -19,6 +19,7 @@ internal static class ScreenReaderCommands
             Zones.ZoneNavigator.Tick();
             MessageHistory.Tick();
             Game.UndoKey.Tick(Screens.Top());
+            Game.BirdSounds.Tick();
         }
 
         if (Keys.Pressed(KeyCode.F1))

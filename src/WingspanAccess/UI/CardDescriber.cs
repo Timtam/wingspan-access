@@ -127,6 +127,58 @@ internal static class CardDescriber
         return parts;
     }
 
+    /// <summary>
+    /// Adds what the printed card tells about the bird itself: its Latin name, the continents it lives
+    /// on and the trivia text the game shows instead of the power when trivia is switched on.
+    /// </summary>
+    public static List<string> WithFacts(List<string> lines, int birdId, BaseBirdCardView view)
+    {
+        BirdData data = Data((BirdName)birdId);
+        if (data != null)
+        {
+            string latin = data.LatinName;
+            if (!string.IsNullOrEmpty(latin))
+                lines.Add(Loc.Get("card.latin", latin));
+
+            var regions = new List<string>();
+            if (data.NorthAmerica.GetDecrypted())
+                regions.Add(Loc.Get("region.north_america"));
+            if (data.SouthAmerica.GetDecrypted())
+                regions.Add(Loc.Get("region.south_america"));
+            if (data.Europe.GetDecrypted())
+                regions.Add(Loc.Get("region.europe"));
+            if (data.Africa.GetDecrypted())
+                regions.Add(Loc.Get("region.africa"));
+            if (data.Asia.GetDecrypted())
+                regions.Add(Loc.Get("region.asia"));
+            if (data.Australia.GetDecrypted())
+                regions.Add(Loc.Get("region.australia"));
+            if (regions.Count > 0)
+                lines.Add(Loc.Get("card.regions", string.Join(", ", regions)));
+        }
+
+        string trivia = Trivia(birdId, view);
+        if (!string.IsNullOrEmpty(trivia))
+            lines.Add(Loc.Get("card.trivia", trivia));
+        return lines;
+    }
+
+    /// <summary>
+    /// The trivia text of a bird ("fluff" in the game): from its card view, else from the term next to
+    /// its name term ("BirdCards/Names/419" and "BirdCards/Fluffs/419").
+    /// </summary>
+    private static string Trivia(int birdId, BaseBirdCardView view)
+    {
+        string term = view?.TryCast<BirdCardView>()?.BirdTrivia?.Term;
+        string nameTerm = TextLocalizationHelper.GetBirdCardNameTerm(birdId);
+        if (string.IsNullOrEmpty(term) && !string.IsNullOrEmpty(nameTerm) && nameTerm.Contains("/Names/"))
+            term = nameTerm.Replace("/Names/", "/Fluffs/");
+        if (string.IsNullOrEmpty(term))
+            return null;
+        string text = I2.Loc.LocalizationManager.GetTranslation(term, true, 0, true, false, null, null, true);
+        return string.IsNullOrEmpty(text) ? null : UiText.Clean(text);
+    }
+
     /// <summary>The card view of a bird on the local board, if it is in the scene.</summary>
     public static BaseBirdCardView FindBoardView(Rules.Bird bird)
     {

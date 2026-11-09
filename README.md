@@ -40,6 +40,10 @@ The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
   which chapters you have completed.
 - **News.** The news window that opens at start is announced with its first entry; Enter reads a
   news item in full.
+- **Bird facts and calls.** The Latin name, the continents and the trivia text of every bird card can
+  be read in the zones; S plays the bird's call and V the game's spoken trivia.
+- **Expansions.** Games with all expansions (Europe, Oceania, Asia, bird packs) start and play,
+  including nectar; many expansion powers are still untested.
 
 ## Requirements
 
@@ -106,6 +110,8 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | O | Overview of the habitats |
 | I | Show the game's tooltips (gamepad right stick); F3 reads the description of the selected element |
 | H | Hide the interface and show it again (gamepad left stick) |
+| S | Play the call of the bird under the zone cursor or the selected card |
+| V | Play the spoken trivia about that bird |
 | Tab / Shift+Tab | Next / previous card |
 | Page Up / Page Down | Read the previous / next message again (see "Message history") |
 | Control+Page Up / Control+Page Down | Read the first / latest message |
@@ -121,7 +127,9 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 During a game the number keys open zones. Inside a zone the keys are always the same: Left and
 Right move between its items, Home and End jump to the first and last one, Up and Down read the
 selected item line by line (for a bird: name, eggs and cards on it, points, habitats, food cost,
-nest, egg limit, wingspan, power, where it can be played), Escape goes back to the game. Pressing
+nest, egg limit, wingspan, power, where it can be played, then what the printed card tells about
+the bird: Latin name, the continents it lives on and the trivia text), Escape goes back to the
+game. S plays the call of the bird under the cursor and V the game's spoken trivia about it. Pressing
 the zone key again repeats the overview. A new screen or task closes the zone, so the arrow keys
 work for the game's own choices again.
 

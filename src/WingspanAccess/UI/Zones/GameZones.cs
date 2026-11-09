@@ -60,9 +60,11 @@ internal sealed class HabitatZone : Zone
                 Details = () =>
                 {
                     BaseBirdCardView view = own ? CardDescriber.FindBoardView(bird) : null;
-                    return view != null ? CardDescriber.BirdLines(view) : CardDescriber.BirdLines(bird.ID, bird);
+                    List<string> lines = view != null ? CardDescriber.BirdLines(view) : CardDescriber.BirdLines(bird.ID, bird);
+                    return CardDescriber.WithFacts(lines, bird.ID, view);
                 },
                 Control = own ? () => BoardControl(bird) : null,
+                BirdId = bird.ID,
             });
         }
 
@@ -186,9 +188,11 @@ internal sealed class TrayZone : Zone
                 Details = () =>
                 {
                     BaseBirdCardView view = TrayView(id);
-                    return view != null ? CardDescriber.BirdLines(view) : CardDescriber.BirdLines(id, null);
+                    List<string> lines = view != null ? CardDescriber.BirdLines(view) : CardDescriber.BirdLines(id, null);
+                    return CardDescriber.WithFacts(lines, id, view);
                 },
                 Control = () => TrayControl(id),
+                BirdId = id,
             });
         }
 
@@ -334,11 +338,14 @@ internal sealed class HandZone : Zone
         foreach (CardView card in Cards())
         {
             CardView current = card;
+            BaseBirdCardView bird = card.TryCast<BaseBirdCardView>();
+            int birdId = bird == null ? 0 : (int)bird.ID;
             items.Add(new ZoneItem
             {
                 Summary = CardDescriber.HandSummary(card),
-                Details = () => CardDescriber.CardLines(current),
+                Details = () => birdId > 0 ? CardDescriber.WithFacts(CardDescriber.CardLines(current), birdId, bird) : CardDescriber.CardLines(current),
                 Tag = card,
+                BirdId = birdId,
             });
         }
 

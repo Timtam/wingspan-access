@@ -13,6 +13,9 @@ internal sealed class ZoneItem
     public Func<List<string>> Details;
     public Func<UnityEngine.UI.Selectable> Control;
     public object Tag;
+
+    /// <summary>The bird the item stands for (0 if none), for its sound and spoken trivia.</summary>
+    public int BirdId;
 }
 
 /// <summary>A part of the game the player can browse with the arrow keys (a habitat, the hand ...).</summary>
