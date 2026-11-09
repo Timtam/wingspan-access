@@ -274,9 +274,11 @@ internal sealed class HandZone : Zone
 
     public override void OnEnter()
     {
+        // Open the hand only where cards are played or chosen from it; elsewhere it is read-only.
         PlayerHandUI hand = Hand;
         GamepadScreen top = Screens.Top();
-        if (hand == null || hand.IsInCardPreview || top?.TryCast<Decision>() == null || top.TryCast<WaitForOtherPlayer_Decision>() != null)
+        bool handTask = top != null && (top.TryCast<ChooseAction_Decision>() != null || top.GetIl2CppType().Name.Contains("Hand"));
+        if (hand == null || hand.IsInCardPreview || !handTask)
             return;
         KeyboardBridge.Press(VirtualGamepad.Buttons.ToggleCardPreview);
         _opened = true;

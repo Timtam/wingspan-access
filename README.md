@@ -69,6 +69,7 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | Enter | Select (gamepad A): activate a button, mark a card, take a die, lay an egg, play the card in your hand |
 | Space | Continue or confirm (gamepad Y): start the game, confirm a selection or payment |
 | Escape | Back (gamepad B). Inside a zone: back to the game |
+| Backspace | Take the last picked food out again (paying for a bird, caching food on a bird) |
 | Shift+F10 or Applications key | Context action (gamepad X) |
 | Tab / Shift+Tab | Next / previous card |
 | Page Up / Page Down | Read the previous / next message again (see "Message history") |
@@ -119,7 +120,7 @@ Announcements of the selected element, zones and information you asked for (F-ke
 3. To play a bird, first choose its habitat with 1, 2 or 3, then press 7 for your hand, choose a card
    with Left and Right (each card says where the rules let you play it now) and press Enter. The mod
    reads the cost and the proposed payment; Space accepts it, the Change button lets you pick the
-   food yourself (Enter on a picked food takes it out again). If the place costs eggs, pick the
+   food yourself (Backspace takes the last one out again). If the place costs eggs, pick the
    birds to take them from with Enter. Escape closes the hand again.
 4. In the task that follows, Enter marks things (cards, dice, birds for eggs) and Space confirms.
    A card drawn from the deck is shown first: one Space puts it into your hand, the next confirms.

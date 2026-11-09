@@ -79,6 +79,7 @@ internal static class FocusAnnouncer
         Game.DrawAnnouncer.Tick(top);
         Game.SpecialPowersAnnouncer.Tick(top);
         Game.DiscardAnnouncer.Tick(top);
+        Game.PowerProgressAnnouncer.Tick(top);
     }
 
     private static readonly HashSet<string> NotInHistory = new() { "WaitForOtherPlayer_Decision", "PauseMenu_Screen", "OptionsMenuPause" };
@@ -142,6 +143,11 @@ internal static class FocusAnnouncer
 
         if (top.TryCast<Decision>() != null)
         {
+            // Decisions shown after loading a game, or while the camera moves, can ignore the first
+            // gamepad input although something is selected; switching gamepad input on again fixes it.
+            if (top.TryCast<WaitForOtherPlayer_Decision>() == null)
+                top.SetGamepadInteractive(true);
+
             if (selected == null || !selected.activeInHierarchy)
             {
                 Plugin.Logger.LogInfo($"[Focus] nothing selected in {top.GetIl2CppType().Name}, enabling gamepad interaction and selecting its default");
@@ -149,6 +155,10 @@ internal static class FocusAnnouncer
                 top.TrySelectDefault();
                 GameObject now = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
                 Plugin.Logger.LogInfo($"[Focus] after default selection: {(now == null ? "<none>" : UiText.PathOf(now))}");
+            }
+            else
+            {
+                Plugin.Logger.LogInfo($"[Focus] {top.GetIl2CppType().Name}: gamepad input on, keeping {UiText.PathOf(selected)}");
             }
 
             return;

@@ -319,6 +319,15 @@ Escape leaves. Enter, Space and Tab stay with the game. The key table is at the 
 - While a zone is open, `KeyboardBridge` does not translate the arrows and Escape (and Enter in the
   players zone), and `FocusAnnouncer` stays silent about selections.
 - Page Up/Down moved from the habitats to the message history.
+- The hand zone only opens the hand while choosing an action or in tasks about hand cards (type
+  name contains "Hand"); elsewhere it reads the hand without opening it.
+- Decisions shown right after loading a saved game ignored the first Enter although something was
+  selected. The focus guard now calls `SetGamepadInteractive(true)` for every new decision (except
+  waiting for other players), not only when nothing is selected.
+- Backspace (`Game.UndoKey`) clicks the last active `FoodAboutToPay.FoodButtons` entry in the manual
+  payment panel, or calls `CacheUpToAmountOfFoodFromSupplyOnBird_Decision.RevertLastCachedFood()`.
+- `PowerProgressAnnouncer`: food cached so far (`foodToCache` of `amountToCache`) and the bonus card
+  drawn (`BaseDrawBonusCardFromDeck_Decision.bonusCardDraw` / `bonusCard`). Not seen in a game yet.
 
 ### Known gaps
 

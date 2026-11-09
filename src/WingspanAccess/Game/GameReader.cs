@@ -22,8 +22,8 @@ internal static class GameReader
         int grass = player.GetAllBirdsInHabitat(ActionType.LayEggs)?.Count ?? 0;
         int wetland = player.GetAllBirdsInHabitat(ActionType.DrawBirds)?.Count ?? 0;
         string food = FoodList(player._pf);
-        return Loc.Get("game.opponent", name, forest, grass, wetland,
-            food.Length == 0 ? Loc.Get("game.no_food") : food, player.BirdCards?.Count ?? 0, player.TokensLeft);
+        return Loc.Get("game.opponent", name, forest, grass, wetland, food.Length == 0 ? Loc.Get("game.no_food") : food,
+            Loc.Count("game.bird_cards", player.BirdCards?.Count ?? 0), Loc.Count("status.actions", player.TokensLeft));
     }
 
     /// <summary>A player line by line: each habitat with its birds, food, cards and actions left.</summary>

@@ -157,6 +157,7 @@ internal static class ZoneNavigator
 
     private static void Show(List<ZoneItem> items, int index)
     {
+        Plugin.Logger.LogInfo($"[Zone] {_zone.GetType().Name} item {index}");
         _index = Mathf.Clamp(index, 0, items.Count - 1);
         _line = -1;
         _lines = null;

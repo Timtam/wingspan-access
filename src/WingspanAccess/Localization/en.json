@@ -166,7 +166,7 @@
   "game.bonus_cards.one": "{0} bonus card",
   "game.hand": "Bird cards: {0}. Bonus cards: {1}",
   "game.round": "Round {0} of 4, {1} actions left, current player: {2}",
-  "game.opponent": "{0}: forest {1}, grassland {2}, wetland {3} birds, supply {4}, {5} cards in hand, {6} actions left",
+  "game.opponent": "{0}: forest {1}, grassland {2}, wetland {3} birds, supply {4}, {5}, {6}",
   "game.birds_in_habitat": "{0} birds there",
   "habitat.GainFood": "Forest",
   "habitat.LayEggs": "Grassland",
@@ -246,7 +246,7 @@
   "eggs.progress": "{0} of {1} eggs laid",
   "eggs.done_hint": "Space confirms",
   "playbird.choose_payment": "No payment chosen yet. Use the Change button to choose the food",
-  "playbird.choose_food": "No food chosen yet. Pick it with the arrow keys and Enter, Space confirms",
+  "playbird.choose_food": "No food chosen yet. Pick it with the arrow keys and Enter, Backspace takes the last one out again, Space confirms",
   "game.habitat.one": "{0}, {1} bird: {2}",
   "screen.RequirementNotFulfilled_Decision": "Note",
   "screen.RequirementNotFulfilled_Panel": "Note",
@@ -379,5 +379,11 @@
   "status.actions.one": "{0} action left",
   "status.current": "Current player: {0}",
   "name.picked_food": "{0}, picked, Enter takes it out again",
-  "eggs.to_lay.one": "You may lay {0} egg. Choose a bird with the arrow keys and press Enter to lay an egg."
+  "eggs.to_lay.one": "You may lay {0} egg. Choose a bird with the arrow keys and press Enter to lay an egg.",
+  "cache.progress": "{0} of {1} cached: {2}",
+  "cache.none": "Nothing cached",
+  "cache.undo_hint": "Backspace takes the last one out again",
+  "undo.nothing": "Nothing to take out",
+  "screen.ScoreBonusCardWithCachedFood_Decision": "Score a bonus card",
+  "screen.DrawBonusCardFromDeck_Decision": "Draw a bonus card"
 }
