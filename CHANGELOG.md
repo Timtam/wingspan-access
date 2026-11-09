@@ -5,6 +5,8 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-09
+
 ### Added
 
 - Online invitations are announced when they arrive ("New invitation from ..."), also those still
