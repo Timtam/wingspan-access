@@ -34,6 +34,42 @@ internal static class Screens
         return string.Join(", ", names);
     }
 
+    /// <summary>Visible texts of the given object names, in the order of the names.</summary>
+    public static List<string> NamedTexts(GameObject root, string[] objectNames)
+    {
+        var byName = new Dictionary<string, string>();
+        var visibility = new Visibility(root.transform);
+        foreach (TMPro.TMP_Text text in root.GetComponentsInChildren<TMPro.TMP_Text>(false))
+        {
+            if (System.Array.IndexOf(objectNames, text.name) >= 0 && !byName.ContainsKey(text.name) &&
+                visibility.IsVisible(text.transform))
+                byName[text.name] = UiText.TextOf(text);
+        }
+
+        var result = new List<string>();
+        foreach (string name in objectNames)
+        {
+            if (byName.TryGetValue(name, out string value) && value.Length > 0)
+                result.Add(value);
+        }
+
+        return result;
+    }
+
+    /// <summary>Number of visible, interactable controls in a screen.</summary>
+    public static int CountControls(GameObject root)
+    {
+        int count = 0;
+        var visibility = new Visibility(root.transform);
+        foreach (UnityEngine.UI.Selectable selectable in root.GetComponentsInChildren<UnityEngine.UI.Selectable>(false))
+        {
+            if (selectable.interactable && visibility.IsVisible(selectable.transform))
+                count++;
+        }
+
+        return count;
+    }
+
     /// <summary>Visible texts of a screen that are not labels of interactive elements.</summary>
     public static List<string> PlainTexts(GameObject root)
     {
@@ -43,7 +79,7 @@ internal static class Screens
         {
             if (text.GetComponentInParent<UnityEngine.UI.Selectable>() != null || !visibility.IsVisible(text.transform))
                 continue;
-            string clean = UiText.Clean(text.text);
+            string clean = UiText.TextOf(text);
             if (clean.Length > 0 && !result.Contains(clean))
                 result.Add(clean);
         }

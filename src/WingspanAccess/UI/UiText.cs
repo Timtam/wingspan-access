@@ -21,9 +21,12 @@ internal static class UiText
     {
         try
         {
-            string special = SetupDescriber.Describe(target);
+            string special = SetupDescriber.Describe(target) ?? CardDescriber.Describe(target);
             if (special != null)
-                return special;
+            {
+                string cardPosition = Position(target);
+                return cardPosition == null ? special : $"{special}, {cardPosition}";
+            }
         }
         catch (Exception e)
         {
@@ -35,8 +38,14 @@ internal static class UiText
         if (slider != null)
             texts.RemoveAll(text => Numeric.IsMatch(text));
 
+        // A translated name for the object itself wins over whatever texts sit inside it.
+        string ownNameKey = "name." + target.name;
         string label;
-        if (texts.Count > 0)
+        if (Loc.Has(ownNameKey))
+        {
+            label = Loc.Get(ownNameKey);
+        }
+        else if (texts.Count > 0)
         {
             label = string.Join(", ", texts);
         }
@@ -44,8 +53,10 @@ internal static class UiText
         {
             // Unlabeled controls (arrow buttons, bare toggles) take the texts next to them,
             // e.g. "Auflösung, 1920 x 1080" plus a name for the control itself ("previous").
-            var parts = SiblingTexts(target);
+            // With a known name, only direct neighbours count; texts further up are usually the
+            // decision's instruction, which was announced already.
             string name = NameOf(target);
+            var parts = name != null ? SiblingTexts(target) : ContextTexts(target);
             if (name != null)
                 parts.Add(name);
             label = parts.Count > 0 ? string.Join(", ", parts) : HumanizeTypeName(target.name);
@@ -57,19 +68,25 @@ internal static class UiText
         return position == null ? description : $"{description}, {position}";
     }
 
-    /// <summary>"2 of 5" among the interactive siblings of the element, if there are at least two.</summary>
+    /// <summary>
+    /// "2 of 5" among the interactive siblings of the same kind (toggle, button, slider ...),
+    /// if there are at least two.
+    /// </summary>
     public static string Position(GameObject target)
     {
         Transform parent = target.transform.parent;
-        if (parent == null)
+        UnityEngine.UI.Selectable own = target.GetComponent<UnityEngine.UI.Selectable>();
+        if (parent == null || own == null)
             return null;
 
+        string kind = own.GetIl2CppType().Name;
         int index = 0, count = 0;
         for (int i = 0; i < parent.childCount; i++)
         {
             Transform child = parent.GetChild(i);
             UnityEngine.UI.Selectable selectable = child.GetComponent<UnityEngine.UI.Selectable>();
-            if (selectable == null || !child.gameObject.activeInHierarchy || !selectable.interactable)
+            if (selectable == null || !child.gameObject.activeInHierarchy || !selectable.interactable ||
+                selectable.GetIl2CppType().Name != kind)
                 continue;
             count++;
             if (child == target.transform)
@@ -79,11 +96,67 @@ internal static class UiText
         return count >= 2 && index > 0 ? Loc.Get("position", index, count) : null;
     }
 
-    /// <summary>Spoken name for a control without text, from "name.&lt;object name&gt;" in the language files.</summary>
+    /// <summary>
+    /// Spoken name for a control without text, from "name.&lt;object name&gt;" in the language files.
+    /// The parent's name is tried as well (e.g. "ButtonAccept" around a generic "ButtonInPanel").
+    /// </summary>
     public static string NameOf(GameObject target)
     {
         string key = "name." + target.name;
-        return Loc.Has(key) ? Loc.Get(key) : null;
+        if (Loc.Has(key))
+            return Loc.Get(key);
+
+        // The parent's name wins over a generic or wrong child name
+        // (the payment panel has "Nectar/ButtonInPanel_Seed").
+        Transform parent = target.transform.parent;
+        string parentKey = parent == null ? null : "name." + parent.name;
+        if (parentKey != null && Loc.Has(parentKey))
+            return Loc.Get(parentKey);
+
+        // Food choice buttons are named after their food, e.g. "Dice1/ButtonInPanel_Fruit".
+        Match food = FoodButton.Match(target.name);
+        return food.Success && Loc.Has("name." + food.Groups[1].Value) ? Loc.Get("name." + food.Groups[1].Value) : null;
+    }
+
+    /// <summary>
+    /// Texts that label an unlabeled control: its siblings' texts, or else the texts of the nearest
+    /// ancestor (up to two levels) that are not part of another control. Limited to four texts.
+    /// </summary>
+    public static List<string> ContextTexts(GameObject element)
+    {
+        List<string> texts = SiblingTexts(element);
+        Transform ancestor = element.transform.parent;
+        for (int depth = 0; texts.Count == 0 && ancestor != null && depth < 2; depth++)
+        {
+            ancestor = ancestor.parent;
+            if (ancestor == null)
+                break;
+
+            var visibility = new Visibility(ancestor);
+            foreach (TMPro.TMP_Text text in ancestor.GetComponentsInChildren<TMPro.TMP_Text>(false))
+            {
+                if (texts.Count >= 4)
+                    break;
+                if (text.GetComponentInParent<UnityEngine.UI.Selectable>() != null || !visibility.IsVisible(text.transform))
+                    continue;
+                AddDistinct(texts, TextOf(text));
+            }
+        }
+
+        return texts;
+    }
+
+    /// <summary>
+    /// Cleaned text of a text object; bare values get a label from "label.&lt;object name&gt;"
+    /// (e.g. the counter "446" becomes "Vogelkarten: 446").
+    /// </summary>
+    public static string TextOf(TMPro.TMP_Text text)
+    {
+        string clean = Clean(text.text);
+        if (clean.Length == 0)
+            return clean;
+        string key = "label." + text.name;
+        return Loc.Has(key) ? Loc.Get(key, clean) : clean;
     }
 
     /// <summary>Visible texts directly under the element's parent that are not interactive themselves.</summary>
@@ -101,7 +174,7 @@ internal static class UiText
                 continue;
             TMPro.TMP_Text text = child.GetComponent<TMPro.TMP_Text>();
             if (text != null)
-                AddDistinct(result, Clean(text.text));
+                AddDistinct(result, TextOf(text));
         }
 
         return result;
@@ -114,7 +187,7 @@ internal static class UiText
         foreach (TMPro.TMP_Text text in root.GetComponentsInChildren<TMPro.TMP_Text>(false))
         {
             if (visibility.IsVisible(text.transform))
-                AddDistinct(result, Clean(text.text));
+                AddDistinct(result, TextOf(text));
         }
 
         foreach (UnityEngine.UI.Text text in root.GetComponentsInChildren<UnityEngine.UI.Text>(false))
@@ -136,7 +209,28 @@ internal static class UiText
             return string.Empty;
         text = SpriteTag.Replace(text, match => " " + SpriteName(match.Groups[1].Value) + " ");
         text = AnyTag.Replace(text, " ");
-        return Whitespace.Replace(text, " ").Trim();
+        text = Whitespace.Replace(text, " ").Trim();
+        // "[nest icon] Nest" in game texts would otherwise read "Höhlennest Nest".
+        text = DoubledNest.Replace(text, "$1");
+        return SpaceBeforePunctuation.Replace(text, "$1");
+    }
+
+    private static readonly Regex DoubledNest = new(@"(nest) nest\b", RegexOptions.IgnoreCase);
+    private static readonly Regex FoodButton = new(@"^ButtonInPanel_(\w+)$");
+    private static readonly Regex SpaceBeforePunctuation = new(@"\s+([,.;:!?)])");
+
+    /// <summary>
+    /// Whether a text is on screen: 3D texts (TextMeshPro) need a rendered mesh, UI texts a visible
+    /// canvas chain (see <see cref="Visibility"/>).
+    /// </summary>
+    public static bool IsShown(TMPro.TMP_Text text)
+    {
+        if (!text.gameObject.activeInHierarchy || !text.enabled)
+            return false;
+        MeshRenderer renderer = text.GetComponent<MeshRenderer>();
+        if (renderer != null)
+            return renderer.enabled && renderer.isVisible;
+        return new Visibility(text.transform.root).IsVisible(text.transform);
     }
 
     private static string SpriteName(string sprite)

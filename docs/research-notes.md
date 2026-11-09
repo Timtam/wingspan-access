@@ -200,6 +200,77 @@ The console ports left a complete gamepad UI in the PC build. That is the main h
   example `TMP_Text`. Use `GetComponentsInChildren<T>()` instead.
 - Interface and base-class checks work with `TryCast<T>()`.
 
+## In-game notes (2026-11-09)
+
+### Making decisions usable
+
+- The game only selects defaults in decisions when `GamepadController.HasController()` is true, and
+  that is only the case for real joysticks. A Harmony postfix (`Patches/GamepadPatches.cs`) returns
+  true while the virtual gamepad is active. After that, decisions focus their first card or slot
+  (`Game_Canvas/CardSlotSelectables/GamepadCardSlot`).
+- The pattern in decisions: Enter (Submit) marks a card, die or bird, and Space (Accept) confirms.
+  Start game = Space in the setup screen.
+
+### Where things are
+
+- `UIGod.I` is the UI singleton:
+  - `GetCurrentHabitat()` returns the habitat in view; Page Up/Down move it.
+  - `CanPlayInCurrentHabitat(BirdCardView)` tells whether a hand card is playable there.
+  - It also has `GoTo(ActionType)` and the `Forest`, `Grassland` and `Wetland` `HabitatUI` objects.
+- Every `Decision` holds `gameStateDriver`. Its `GameState` is the rules model `Rules.GameState`:
+  - `Players` (`Rules.Player`), `BirdFeederState` (`Rules.Food`), `BirdsDeckState.Visible` (the tray),
+    `CurrentPlayerID`, `RoundsCounter`.
+  - Per player: `GetAllBirdsInHabitat(ActionType)`, `BirdCards`, `BonusCards`, `_pf` (food supply),
+    `TokensLeft`.
+  - Per bird (`Rules.Bird`): `Eggs`, `CachedFood`, `TuckedCardsCount`.
+- Habitat ↔ `ActionType` mapping: GainFood = forest, LayEggs = grassland, DrawBirds = wetland.
+- Bird names: `I2 GetTranslation(TextLocalizationHelper.GetBirdCardNameTerm(id))`.
+- Card views:
+  - Locations: `MainCamera/CardPreview_preview/StartingBirdCardsChoice/SlotN/...` (starting
+    choice), `MainCamera/LocalGameStateView/PlayerHand/...` (hand) and
+    `HabitatsObjects/CardTray/TrayCardSlotN/...` (tray).
+  - Texts: `Name_TMP`, `Food_TMP`, `Wingspan_TMP`, `VP_TMP`, `BirdPowerHeader_TMP` and
+    `Description_TMP`.
+  - `BaseBirdCardView.ID` is the bird id for `BirdDatabase.Get`; `BirdData` values are ACTk
+    `Obscured*` types (`.GetDecrypted()`).
+  - `BaseBirdCardView.GameStateBird` is the bird on a board.
+  - The face-down deck is a `DeckSlot` (bird view with id 0).
+- Instruction texts:
+  - Inside the decision object, e.g. `DrawBirds_Decision/CardsTxt`.
+  - Or as 3D texts, e.g. `StartingBirdCardsChoice/DescriptionCardsFoodTxt`.
+  - 3D texts (`TextMeshPro`) are "shown" when their `MeshRenderer.isVisible` is true.
+- Playing a bird (`PlayBird_Decision`):
+  - It runs through states (`CurrentState`); `HasShownUIToPlayer` separates real steps from
+    pass-through ones.
+  - Cost and payment: `_currentData.BirdPayment` (`Food`, `EggsCost`, `EnoughFood`).
+  - The payment buttons are `ChangePanel/Buttons/<Food>/ButtonInPanel_*`. The child names can be
+    wrong (`Nectar/ButtonInPanel_Seed`), so the parent name is used.
+- Food from the feeder: `ChooseDice/DiceN/ButtonInPanel_<Food>`. Chosen dice appear under
+  `DicesChosenButtons`.
+- Eggs: `BaseLayEggs_Decision` has `numberOfEggs` and `laidEggs`. The eggs are only written to the
+  rules model after confirming.
+- The new turn popup is reused every turn. Its own texts are `RoundText`, `TurnText` and `TapText`;
+  the goal track is under `Turn/RoundGoalN`.
+- Round goals: `Game_Canvas/HabitatsNotchPadding/GoalsMiniBoard_HUD/TokenSlotN`. Their tooltips
+  (`GoalDescriptionTooltip`) hold the full description.
+
+### Opponent turns
+
+- The AI acts within a few frames of its turn starting. Snapshots of every non-acting player are
+  therefore refreshed continuously.
+- A finished turn is compared about 1.5 s later (`Game/OpponentWatcher.cs`), because the board
+  updates after the turn passes on.
+- The game's own log also shows moves, e.g. `[TurnProcessing] Played bird - 250 in habitat LayEggs`.
+
+### Known gaps
+
+- Bird powers with their own decisions are mostly untested. Only the "requirement not fulfilled"
+  note has been seen.
+- Untested so far: Oceania nectar options, round end and game end scoring, the pause menu, Automa
+  games, Duet mode, the colour, portrait and background popups, and the online menus.
+- The remaining number of cards to draw in `DrawBirds_Decision` ("Übrige Karten:") is only shown as
+  an icon and is not announced yet.
+
 ### Design decision
 
 - Input goes through the virtual QAATT gamepad, and the game's keyboard map is disabled; see the

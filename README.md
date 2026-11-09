@@ -3,8 +3,10 @@
 A screen reader accessibility mod for the Steam version of **Wingspan** (Monster Couch / Stonemaier Games).
 It speaks the game's menus through your screen reader and lets you control the game with the keyboard.
 
-> **Status: early development.** The main menu, settings, news, the play menu and the custom game setup
-> are accessible. Gameplay itself (the board, cards and turns) is not accessible yet.
+> **Status: early development.** The main menus and the custom game setup are accessible. A basic game
+> against AI players can be played: the starting selection, the four actions (play a bird, gain food,
+> lay eggs, draw cards), and announcements of what the other players did. Many bird powers, expansion
+> features and the online modes have not been tested yet.
 
 The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 
@@ -19,6 +21,14 @@ The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 - **Follows the game's language.** The game's own texts are read in whatever language the game uses. The
   mod's own messages are available in English and German; other languages fall back to English.
 - **Game tooltips on demand.** Descriptions that sighted players see on mouse-over can be read with a key.
+- **Cards read in full.** A focused bird card is read with its name, points, habitats, food cost, nest,
+  egg limit, wingspan and power. Birds on your board also report their eggs, cached food and tucked
+  cards. Cards in your hand tell you whether they can be played in the habitat you are looking at.
+- **Game state on demand.** The number keys read your habitats, the birdfeeder, the bird tray, your
+  supply, your hand, the round and the other players.
+- **Turn announcements.** Each task is announced, for example "Choose 5 (1/5)" or "1 of 2 eggs laid". So
+  are the habitat you are looking at and the cost of the bird you are playing. When another player
+  finishes their turn, the mod summarizes what they did.
 
 ## Requirements
 
@@ -51,21 +61,48 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 
 | Key | Action |
 | --- | --- |
-| Arrow keys | Move through the menu |
-| Enter | Select (gamepad A) |
+| Arrow keys | Move through menus, cards and birds. In the game mode popup, Left and Right switch the mode |
+| Enter | Select (gamepad A): activate a button, mark a card, take a die, lay an egg |
+| Space | Continue or confirm (gamepad Y): start the game, confirm a selection or payment |
 | Escape | Back (gamepad B) |
-| Space | Continue or confirm (gamepad Y) |
 | Shift+F10 or Applications key | Context action (gamepad X) |
 | Page Up / Page Down | Previous / next habitat |
-| Control+Page Up / Control+Page Down | Show other players; switch pages in some popups, for example the game mode |
+| Control+Page Up / Control+Page Down | Show other players; switch pages in some popups |
 | Tab / Shift+Tab | Next / previous card |
+| H | Open or close your hand (to play a bird) |
+| T | Show the bird tray |
+| G | Show the round goals |
+| O | Habitat overview |
 | F10 | Pause menu |
 | F1 | List the keys |
-| F2 | Read the whole screen |
+| F2 | Read the whole screen, including the current task |
 | F3 | Read the description (tooltip) of the selected element |
 | F11 | Mod status: speech output, language, current screen |
 
+Reading the game state:
+
+| Key | Reads |
+| --- | --- |
+| 1, 2, 3 | Your forest, grassland, wetland: birds with eggs, cached food and tucked cards |
+| 4 | Birdfeeder |
+| 5 | Bird tray (face-up cards) |
+| 6 | Your food supply and the number of cards in your hand |
+| 7 | The bird cards and bonus cards in your hand |
+| 8 | Round, actions left, current player |
+| 9 | The other players: birds per habitat, food, hand size, actions left |
+| 0 | Round goals |
+
 When the game shows controller hints, the mod reads them as the matching keyboard keys.
+
+### Playing a turn
+
+1. A new turn is announced ("Your turn. Round 1 of 4. 8 turns left"). Press Enter.
+2. Choose an action. Page Up and Page Down move between forest (gain food), grassland (lay eggs) and
+   wetland (draw cards); Enter takes the action of the habitat you are in. To play a bird, press H to
+   open your hand, choose a card with the arrow keys and press Enter.
+3. In the task that follows, Enter marks things (cards, dice, birds for eggs) and Space confirms.
+   Sometimes the game needs a second press of Space.
+4. When the other players have moved, the mod tells you what they did.
 
 ## Uninstalling
 
@@ -99,6 +136,9 @@ Steps:
    ```
 
    If Wingspan is not in the default Steam folder, add `-p:WingspanDir="D:\path\to\Wingspan"`.
+
+`tools/cycle-game.ps1` closes the game, builds and deploys the mod, starts the game again and waits
+for the main menu. That is handy while developing.
 
 `tools/InteropInspector` lists the game's classes and their members, which helps when you work on
 the mod:

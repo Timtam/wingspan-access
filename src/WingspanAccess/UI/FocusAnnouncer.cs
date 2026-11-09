@@ -29,6 +29,7 @@ internal static class FocusAnnouncer
     private static GameObject _selected;
     private static List<string> _watchedTexts = new();
     private static int _nextTextCheck;
+    private static string _lastBoardState;
 
     public static void Tick()
     {
@@ -46,6 +47,7 @@ internal static class FocusAnnouncer
         if (screenChanged)
         {
             _lastScreenId = screenId;
+            _popupId = 0; // the game reuses popups (e.g. the turn popup); compare texts per appearance
             Plugin.Logger.LogInfo($"[Screen] top={top?.GetIl2CppType().Name ?? "<none>"} stack=[{Screens.DescribeStack()}]");
             if (top != null)
                 ScreenReader.Say(DescribeScreen(top));
@@ -63,6 +65,13 @@ internal static class FocusAnnouncer
         TrackSelection(top, interrupt: !screenChanged);
         WatchValue();
         WatchPopupTexts(top);
+        DecisionAnnouncer.Tick(top);
+        Game.GameStateCache.Update(top);
+        Game.ActionAnnouncer.Tick(top);
+        Game.OpponentWatcher.Tick();
+        Game.PlayBirdAnnouncer.Tick(top);
+        Game.ChosenDiceAnnouncer.Tick(top);
+        Game.EggDecisionAnnouncer.Tick(top);
     }
 
     /// <summary>Screen name; for popups also the texts that are not part of a button; then an optional key hint.</summary>
@@ -71,7 +80,12 @@ internal static class FocusAnnouncer
         string typeName = screen.GetIl2CppType().Name;
         string name = UiText.ScreenName(screen);
         var parts = new List<string> { name };
-        if (screen.IsPopup())
+        if (SelectedTexts.TryGetValue(typeName, out string[] objectNames))
+        {
+            parts.AddRange(Screens.NamedTexts(screen.gameObject, objectNames));
+        }
+        // Message-like popups (few controls) are read completely; larger panels only by name.
+        else if (screen.IsPopup() && Screens.CountControls(screen.gameObject) <= 3)
         {
             List<string> texts = Screens.PlainTexts(screen.gameObject);
             texts.Remove(name);
@@ -84,17 +98,41 @@ internal static class FocusAnnouncer
         return UiText.JoinSentences(parts);
     }
 
+    /// <summary>Screens whose announcement should only contain these texts (by object name, in this order).</summary>
+    private static readonly Dictionary<string, string[]> SelectedTexts = new()
+    {
+        // The round goal track in this popup is read with the goals key instead.
+        ["NewTurnAnnouncement_Popup"] = new[] { "RoundText", "TurnText", "TapText" },
+    };
+
+    private static readonly HashSet<string> SilentFocusScreens = new() { "NewTurnAnnouncement_Popup" };
+
     /// <summary>Last selection seen inside each screen, restored when the screen becomes the top again.</summary>
     private static readonly Dictionary<int, GameObject> LastSelectionPerScreen = new();
 
-    /// <summary>Menus and popups own the selection; decisions may select board elements elsewhere.</summary>
+    /// <summary>
+    /// Menus and popups own the selection. Decisions may select board elements elsewhere, so there
+    /// the mod only steps in when nothing at all is selected. The game does not pick a default
+    /// selection by itself while the virtual controller is used.
+    /// </summary>
     private static void KeepSelectionInMenu(GamepadScreen top)
     {
-        if (top.TryCast<Decision>() != null)
-            return;
-
         EventSystem eventSystem = EventSystem.current;
         GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
+
+        if (top.TryCast<Decision>() != null)
+        {
+            if (selected == null || !selected.activeInHierarchy)
+            {
+                Plugin.Logger.LogInfo($"[Focus] nothing selected in {top.GetIl2CppType().Name}, enabling gamepad interaction and selecting its default");
+                top.SetGamepadInteractive(true);
+                top.TrySelectDefault();
+                GameObject now = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
+                Plugin.Logger.LogInfo($"[Focus] after default selection: {(now == null ? "<none>" : UiText.PathOf(now))}");
+            }
+
+            return;
+        }
         if (selected != null && selected.activeInHierarchy && selected.transform.IsChildOf(top.transform))
             return;
 
@@ -160,6 +198,7 @@ internal static class FocusAnnouncer
         _lastValue = null;
         _selected = selected;
         _watchedTexts = new List<string>();
+        _lastBoardState = null;
         if (selected == null)
         {
             Plugin.Logger.LogInfo("[Focus] <none>");
@@ -171,6 +210,10 @@ internal static class FocusAnnouncer
         _dropdown = selected.GetComponent<TMPro.TMP_Dropdown>();
         _lastValue = CurrentValue();
         _watchedTexts = WatchedTexts(selected);
+
+        // Full-screen "click to continue" buttons repeat what the screen announcement just said.
+        if (top != null && SilentFocusScreens.Contains(top.GetIl2CppType().Name))
+            return;
 
         string description = UiText.Describe(selected);
         Transform parent = selected.transform.parent;
@@ -204,6 +247,17 @@ internal static class FocusAnnouncer
             return;
 
         _nextTextCheck = Time.frameCount + 6;
+
+        // Birds on the board: announce eggs, cached food and tucked cards when they change.
+        CardView card = CardDescriber.FindCardView(_selected);
+        BaseBirdCardView bird = card == null ? null : card.TryCast<BaseBirdCardView>();
+        string boardState = bird == null ? null : CardDescriber.BoardState(bird);
+        if (boardState != _lastBoardState)
+        {
+            if (_lastBoardState != null && boardState != null)
+                ScreenReader.Say(boardState);
+            _lastBoardState = boardState;
+        }
         List<string> now = WatchedTexts(_selected);
         var changed = now.FindAll(text => !_watchedTexts.Contains(text));
         _watchedTexts = now;

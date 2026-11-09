@@ -9,15 +9,15 @@ namespace WingspanAccess.UI;
 /// </summary>
 internal static class Tooltips
 {
-    /// <summary>Tooltip texts on the element, its children and its two closest parents.</summary>
-    public static List<string> TextsFor(GameObject element)
+    /// <summary>Tooltip texts on the element, its children and (optionally) its two closest parents.</summary>
+    public static List<string> TextsFor(GameObject element, bool includeParents = true)
     {
         var result = new List<string>();
         foreach (BaseTooltip tooltip in element.GetComponentsInChildren<BaseTooltip>(true))
             Add(result, tooltip);
 
         Transform parent = element.transform.parent;
-        for (int depth = 0; parent != null && depth < 2; depth++, parent = parent.parent)
+        for (int depth = 0; includeParents && parent != null && depth < 2; depth++, parent = parent.parent)
         {
             foreach (BaseTooltip tooltip in parent.GetComponents<BaseTooltip>())
                 Add(result, tooltip);

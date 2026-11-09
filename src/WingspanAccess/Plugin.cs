@@ -20,6 +20,16 @@ public class Plugin : BasePlugin
         Logger = Log;
         Loc.Initialize();
         ScreenReader.Initialize(Log);
+        try
+        {
+            new HarmonyLib.Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
+            Log.LogInfo("Harmony patches applied");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError($"Harmony patching failed: {e}");
+        }
+
         AddComponent<ModBehaviour>();
         Log.LogInfo($"{Name} {Version} loaded, speech backend: {ScreenReader.BackendName}");
     }
