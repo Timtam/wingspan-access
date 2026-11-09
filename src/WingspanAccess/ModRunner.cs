@@ -26,6 +26,7 @@ internal static class ModRunner
         try
         {
             Loc.UpdateLanguage();
+            Updates.UpdateChecker.Tick();
             if (!_announcedLoad && GamepadController.I != null)
             {
                 _announcedLoad = true;

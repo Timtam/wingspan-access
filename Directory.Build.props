@@ -1,0 +1,37 @@
+<Project>
+  <!-- Shared by the mod and the installer. The release workflow bumps ModVersion. -->
+  <PropertyGroup>
+    <ModVersion>0.1.0</ModVersion>
+    <Version>$(ModVersion)</Version>
+    <!-- Disables the "+commit" suffix the SDK appends to the informational version. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- "owner/name" of the GitHub repository, used for update checks. CI passes the real one
+         (github.repository); local builds leave it empty, which turns the update checks off. -->
+    <RepositorySlug Condition="'$(RepositorySlug)' == ''"></RepositorySlug>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <Company>Wingspan Access</Company>
+    <Product>Wingspan Access</Product>
+  </PropertyGroup>
+
+  <!-- BuildInfo.Version and BuildInfo.RepositorySlug as constants for both projects. -->
+  <Target Name="GenerateBuildInfo" BeforeTargets="BeforeCompile;CoreCompile" Condition="'$(BuildInfoNamespace)' != ''">
+    <PropertyGroup>
+      <BuildInfoFile>$(IntermediateOutputPath)BuildInfo.g.cs</BuildInfoFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <BuildInfoLine Include="// Generated from Directory.Build.props." />
+      <BuildInfoLine Include="namespace $(BuildInfoNamespace)%3B" />
+      <BuildInfoLine Include="internal static class BuildInfo" />
+      <BuildInfoLine Include="{" />
+      <BuildInfoLine Include="    public const string Version = &quot;$(ModVersion)&quot;%3B" />
+      <BuildInfoLine Include="    public const string RepositorySlug = &quot;$(RepositorySlug)&quot;%3B" />
+      <BuildInfoLine Include="}" />
+    </ItemGroup>
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <WriteLinesToFile File="$(BuildInfoFile)" Lines="@(BuildInfoLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(BuildInfoFile)" />
+      <FileWrites Include="$(BuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+</Project>

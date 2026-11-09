@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A single EXE on .NET Framework 4.8 (part of Windows 10 and 11), with standard WinForms
+       controls so screen readers can use it. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>WingspanAccessInstaller</AssemblyName>
+    <RootNamespace>WingspanAccessInstaller</RootNamespace>
+    <BuildInfoNamespace>WingspanAccessInstaller</BuildInfoNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Description>Installs, updates and removes Wingspan Access</Description>
+    <Product>Wingspan Access Installer</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets the build work without the .NET Framework targeting pack installed (CI). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+
+</Project>

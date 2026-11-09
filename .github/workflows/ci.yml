@@ -1,0 +1,62 @@
+# Builds the mod, the installer and the release ZIP on every push to main, for pull requests and
+# on demand. The ZIP and the installer are kept as artifacts of the run.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+  pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache BepInEx
+        uses: actions/cache@v6
+        with:
+          path: third_party/bepinex
+          key: bepinex-${{ hashFiles('tools/fetch-bepinex.ps1') }}
+
+      # Prism publishes no 32-bit build, so it is built once and then taken from the cache.
+      - name: Cache Prism (x86)
+        id: prism
+        uses: actions/cache@v6
+        with:
+          path: third_party/prism/x86
+          key: prism-x86-${{ hashFiles('tools/build-prism-x86.cmd') }}
+
+      - name: Install Ninja
+        if: steps.prism.outputs.cache-hit != 'true'
+        uses: seanmiddleditch/gha-setup-ninja@v6
+
+      - name: Build and package
+        shell: pwsh
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: ./tools/build-release.ps1 -RepositorySlug $env:REPOSITORY
+
+      - name: Upload the ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: WingspanAccess-zip
+          path: dist/WingspanAccess-*.zip
+          if-no-files-found: error
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: WingspanAccessInstaller
+          path: dist/WingspanAccessInstaller.exe
+          if-no-files-found: error

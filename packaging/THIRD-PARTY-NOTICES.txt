@@ -1,0 +1,21 @@
+Third-party software in Wingspan Access {VERSION}
+=================================================
+
+BepInEx 6.0.0-be.793 (commit dbc82f0)
+  The folders BepInEx\core and dotnet and the files winhttp.dll, doorstop_config.ini and
+  .doorstop_version, unchanged from the official build:
+  https://builds.bepinex.dev/projects/bepinex_be/793/BepInEx-Unity.IL2CPP-win-x86-6.0.0-be.793%2Bdbc82f0.zip
+  Source code: https://github.com/BepInEx/BepInEx
+  License: GNU Lesser General Public License 2.1, see LICENSE-BepInEx.txt.
+  BepInEx comes with further components under their own licenses, among them Il2CppInterop
+  (LGPL-3.0), HarmonyX (MIT), Mono.Cecil (MIT), UnityDoorstop (LGPL-2.1) and the .NET runtime
+  (MIT). Their source code and licenses are linked from the BepInEx repository.
+
+Prism 0.18.3
+  The file prism.dll, built as a 32-bit library from the unmodified source code.
+  Source code: https://github.com/ethindp/prism/tree/v0.18.3
+  License: Mozilla Public License 2.0, see LICENSE-Prism.txt. Prism uses code from further
+  projects under their own licenses, see its repository.
+
+Wingspan is a game by Monster Couch and Stonemaier Games. Wingspan Access is unofficial and not
+affiliated with them.
