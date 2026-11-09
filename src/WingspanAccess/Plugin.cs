@@ -11,7 +11,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "wingspan.access";
     public const string Name = "Wingspan Access";
-    public const string Version = "0.1.0";
+    public const string Version = BuildInfo.Version;
 
     internal static ManualLogSource Logger { get; private set; }
 
@@ -20,6 +20,7 @@ public class Plugin : BasePlugin
         Logger = Log;
         Loc.Initialize();
         ScreenReader.Initialize(Log);
+        Updates.UpdateChecker.Initialize(Config);
         try
         {
             new HarmonyLib.Harmony(Guid).PatchAll(typeof(Plugin).Assembly);

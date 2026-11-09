@@ -1,0 +1,97 @@
+# Publishes a release. Start it by hand: Actions, Release, Run workflow.
+# It turns the "Unreleased" section of CHANGELOG.md into the new version, raises the version in
+# Directory.Build.props, builds everything, commits and tags "Release vX.Y.Z" and publishes a
+# GitHub release with the changelog section as notes and the ZIP and the installer as downloads.
+# The mod and the installer find updates through the latest release of this repository.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Part of the version to raise (not used for the first release or when a version is given)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Exact version instead, for example 1.0.0 (optional)
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the tags tell which versions exist
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache BepInEx
+        uses: actions/cache@v6
+        with:
+          path: third_party/bepinex
+          key: bepinex-${{ hashFiles('tools/fetch-bepinex.ps1') }}
+
+      - name: Cache Prism (x86)
+        id: prism
+        uses: actions/cache@v6
+        with:
+          path: third_party/prism/x86
+          key: prism-x86-${{ hashFiles('tools/build-prism-x86.cmd') }}
+
+      - name: Install Ninja
+        if: steps.prism.outputs.cache-hit != 'true'
+        uses: seanmiddleditch/gha-setup-ninja@v6
+
+      - name: Roll the changelog and set the version
+        id: prepare
+        shell: pwsh
+        env:
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+        run: ./tools/release-prepare.ps1 -Bump $env:BUMP -Version $env:VERSION -NotesFile dist/release-notes.md
+
+      - name: Build and package
+        shell: pwsh
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: ./tools/build-release.ps1 -RepositorySlug $env:REPOSITORY
+
+      - name: Commit and tag
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.prepare.outputs.version }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md Directory.Build.props
+          git commit -m "Release v$env:VERSION"
+          git tag -a "v$env:VERSION" -m "Wingspan Access $env:VERSION"
+          git push origin "HEAD:refs/heads/$env:BRANCH"
+          git push origin "refs/tags/v$env:VERSION"
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.prepare.outputs.version }}
+          name: Wingspan Access ${{ steps.prepare.outputs.version }}
+          body_path: dist/release-notes.md
+          fail_on_unmatched_files: true
+          files: |
+            dist/WingspanAccess-${{ steps.prepare.outputs.version }}.zip
+            dist/WingspanAccessInstaller.exe
+            dist/SHA256SUMS.txt
