@@ -87,6 +87,9 @@ internal static class FocusAnnouncer
                 // (the decision under a closing bubble) must not cut them off.
                 bool afterTutorial = Time.realtimeSinceStartup - Game.TutorialAnnouncer.LastSpokeAt < 2f;
                 string screenText = DescribeScreen(top);
+                // A task under the still open habitat overview: the overview keeps the arrow keys.
+                if (top.TryCast<Decision>() != null && OverviewDescriber.IsOpen())
+                    screenText = UiText.JoinSentences(new[] { screenText, Localization.Loc.Get("overview.still_open") });
                 _screenWords = Words(screenText);
                 ScreenReader.Say(screenText, interrupt: !afterTutorial, history: IsGameEvent(top));
                 // A selection inside the new screen, made just before it registered, was cut off by its
@@ -213,6 +216,23 @@ internal static class FocusAnnouncer
     /// the mod only steps in when nothing at all is selected. The game does not pick a default
     /// selection by itself while the virtual controller is used.
     /// </summary>
+    /// <summary>Whether the element lies in a screen that is hidden and not on the game's screen stack any more.</summary>
+    private static bool InClosedScreen(GameObject element)
+    {
+        GamepadScreen owner = element.GetComponentInParent<GamepadScreen>();
+        if (owner == null || new Visibility(owner.transform.root).IsVisible(owner.transform))
+            return false;
+        GamepadController controller = GamepadController.I;
+        var items = controller?.screenStack?.items;
+        for (int i = 0; items != null && i < items.Count; i++)
+        {
+            if (items[i] != null && items[i].GetInstanceID() == owner.GetInstanceID())
+                return false;
+        }
+
+        return true;
+    }
+
     private static void KeepSelectionInMenu(GamepadScreen top)
     {
         EventSystem eventSystem = EventSystem.current;
@@ -224,6 +244,15 @@ internal static class FocusAnnouncer
             // gamepad input although something is selected; switching gamepad input on again fixes it.
             if (top.TryCast<WaitForOtherPlayer_Decision>() == null)
                 top.SetGamepadInteractive(true);
+
+            // A selection left behind in a screen that is closed now (the pause menu's "Resume") would
+            // take Enter, so it counts as none.
+            if (selected != null && selected.activeInHierarchy && InClosedScreen(selected))
+            {
+                Plugin.Logger.LogInfo($"[Focus] {UiText.PathOf(selected)} belongs to a closed screen");
+                eventSystem.SetSelectedGameObject(null);
+                selected = null;
+            }
 
             if (selected == null || !selected.activeInHierarchy)
             {

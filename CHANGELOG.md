@@ -5,6 +5,57 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Added
+
+- Online invitations are announced when they arrive ("New invitation from ..."), also those still
+  waiting when you log in.
+- While the starting cards are chosen, 7 shows them in place of the empty hand: Left and Right
+  choose a card, Up and Down read it line by line, Enter chooses it or puts it back.
+- Online games announce what the other players did: the mod reads the speech bubbles the game
+  shows at their portraits ("I played a bird: ... in the wetland") right away, and when your turn
+  begins it sums up all their changes: birds played, eggs laid, food taken or spent, cards drawn.
+- Drawing bird cards points to the tray zone (5), where Up and Down read a card line by line.
+
+### Fixed
+
+- "Your active games" in the online menu tells invitations (with the host), running games (whose
+  turn, time left), finished and timed out games apart instead of calling all of them saved games.
+- The short wait at the end of a round is called "Please wait" instead of its internal name.
+- The hand (7) counts bird cards and bonus cards separately ("Hand: 2 bird cards, 1 bonus card").
+- Birds on other players' boards (and other birds without a card on screen) include their power
+  ("When activated: ..."), taken from the game's card texts.
+- A bird tried in a habitat it does not fit in no longer stays chosen: the hand stayed open after
+  the game's message, and every habitat action then tried to play that bird again. The mod now
+  closes the hand with the card preview button ("Hand closed, no bird chosen any more"); leaving
+  zone 7 closes it the same way.
+- A selection left in the closed pause menu no longer takes Enter during the next task; Enter on a
+  habitat takes its action again.
+- The friend list ("Your friends", inviting friends to a custom game) can be used with the arrow
+  keys: the game only lets one of its two parts take input and switches them with the shoulder
+  buttons; the mod switches for you, Left and Right move between friends, Up goes to the search.
+- In the starting choice, Up from the food row returns to the card you came from.
+- Number keys on the open habitat overview say that it is open and O closes it.
+- A bird on a board reads "0 of 4 eggs" once instead of a second "up to 4 eggs"; cards without
+  a board read the nest and the egg limit in one line.
+- If one of the mod's hooks into the game no longer fits after a game update, the others still work.
+- The habitat overview (O) names each slot and what is in it ("Grassland 1, Carrion Crow, 2 of 2
+  eggs", "the habitat's action", "empty") instead of reading the same bird for every slot. A task
+  that starts under the open overview says so, and O closes it.
+- Text fields can be left with the keyboard: Enter, Tab or Down Arrow end the input and move to
+  the control below (the confirm button of the online name dialog), Up Arrow or Shift+Tab to the
+  control above. Before, Enter opened the field again and only Escape, which does not save, worked.
+- Buttons named by their icon no longer read all texts around them (the confirm button of the
+  online profile read the whole profile).
+- Enter in a zone no longer acts on the game's hidden selection when the item under the zone
+  cursor cannot be chosen in the current task (a tray card while choosing the starting cards
+  toggled a starting bird); the mod says "not selectable here" instead.
+- Leaving a zone with Escape during a task also reads the game's selection, so you know where the
+  arrow keys continue.
+- The starting cards no longer begin with the players' speech bubbles ("Talk talk talk talking
+  player").
+- The nectar board names each player correctly in online games, where two players can have the
+  same color (it said "you" twice).
+
 ## [0.1.1] - 2026-11-09
 
 ### Added

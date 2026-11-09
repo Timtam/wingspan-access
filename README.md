@@ -122,6 +122,11 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | F5 | Check for updates. Twice: install the update (see "Updates") |
 | F11 | Mod status: speech output, language, current screen |
 
+Text fields (your online name, a player to invite) take every key while you type, and the mod
+says each typed or deleted character. Enter, Tab or Down Arrow end the input and move to the
+control below, usually the confirm button; press Enter there to confirm. Up Arrow or Shift+Tab move
+to the control above. Escape closes the dialog without saving.
+
 ### Zones
 
 During a game the number keys open zones. Inside a zone the keys are always the same: Left and
@@ -139,7 +144,7 @@ work for the game's own choices again.
 | 4 | Birdfeeder: the dice; while you take food, these are the dice to choose |
 | 5 | Bird tray: the face-up cards and the deck |
 | 6 | Your supply: food and the number of cards in your hand |
-| 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card. When a task asks for a card from your hand (to discard or tuck it), the cursor selects it and Enter marks it |
+| 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card. When a task asks for a card from your hand (to discard or tuck it), the cursor selects it and Enter marks it. While you choose your starting cards, 7 shows the dealt cards instead: Enter chooses a card or puts it back |
 | 8 | Status: round, your actions left, whose turn it is |
 | 9 | Players with their birds, food and cards, you first. Enter on a player makes 1 to 3 read that player's board; Enter on yourself ("You") switches back, and so does the start of your next turn |
 | 0 | Round goals with the standings; Up and Down also read the game's explanation of the goal |

@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using WingspanAccess.Game;
 using WingspanAccess.Input;
 using WingspanAccess.Localization;
+using WingspanAccess.Speech;
 
 namespace WingspanAccess.UI.Zones;
 
@@ -307,7 +309,15 @@ internal sealed class HandZone : Zone
         return result;
     }
 
-    public override string Title() => Loc.Count("zone.hand", Cards().Count);
+    public override string Title()
+    {
+        List<CardView> cards = Cards();
+        int bonus = cards.Count(card => card.TryCast<BonusCardView>() != null);
+        if (bonus == 0)
+            return Loc.Count("zone.hand", cards.Count);
+        // The bonus cards sit in the hand after the birds: "Hand: 2 Vogelkarten, 1 Bonuskarte".
+        return Loc.Get("zone.hand_parts", Loc.Count("game.bird_cards", cards.Count - bonus), Loc.Count("game.bonus_cards", bonus));
+    }
 
     /// <summary>Decisions that take a card from the hand: playing a bird, discarding or tucking cards.</summary>
     public static bool IsHandTask(GamepadScreen top) =>
@@ -328,8 +338,74 @@ internal sealed class HandZone : Zone
 
     public override void OnLeave()
     {
+        // The card preview button closes the hand again; Back does not while an action is chosen.
         if (_opened && Hand != null && Hand.IsInCardPreview)
-            KeyboardBridge.Press(VirtualGamepad.Buttons.Back);
+            KeyboardBridge.Press(VirtualGamepad.Buttons.ToggleCardPreview);
+    }
+
+    /// <summary>Frame since which the hand has been open outside zone 7 (0: it is not).</summary>
+    private static int _leftOpenSince;
+
+    /// <summary>Frame at which the closing is checked (0: no closing under way).</summary>
+    private static int _checkClosedFrame;
+
+    /// <summary>The closing did not work; no new try until the hand is closed or the task changes.</summary>
+    private static bool _gaveUp;
+
+    /// <summary>
+    /// A card tried in a habitat it does not fit in brings up the game's error popup; the hand then
+    /// stays open with the card chosen, and every habitat action tries to play that card again. While
+    /// an action is chosen outside zone 7 the hand is closed again with the card preview button (the
+    /// way it was opened), once, and "hand closed" is said only when it worked. Not in the tutorial,
+    /// whose tasks open the hand themselves.
+    /// </summary>
+    public static void CloseLeftoverHand(GamepadScreen top)
+    {
+        PlayerHandUI hand = Hand;
+        bool choosing = top != null && top.TryCast<ChooseAction_Decision>() != null;
+        bool open = hand != null && hand.IsInCardPreview;
+
+        if (_checkClosedFrame > 0)
+        {
+            if (Time.frameCount < _checkClosedFrame)
+                return;
+            _checkClosedFrame = 0;
+            if (open)
+            {
+                Plugin.Logger.LogInfo("[Zone] the hand did not close");
+                _gaveUp = true;
+            }
+            else
+            {
+                ScreenReader.SayTransient(Loc.Get("zone.hand_closed"), interrupt: false);
+            }
+
+            return;
+        }
+
+        if (!choosing || !open)
+        {
+            _leftOpenSince = 0;
+            _gaveUp = false;
+            return;
+        }
+
+        if (_gaveUp)
+            return;
+
+        // Leaving zone 7 closes the hand itself a few frames later; only a hand that stays open counts.
+        if (_leftOpenSince == 0)
+        {
+            _leftOpenSince = Time.frameCount;
+            return;
+        }
+
+        if (Time.frameCount - _leftOpenSince < 45 || Object.FindObjectOfType<Tutorial.TutorialDriver>() != null)
+            return;
+        _leftOpenSince = 0;
+        Plugin.Logger.LogInfo("[Zone] closing the hand left open outside zone 7");
+        KeyboardBridge.Press(VirtualGamepad.Buttons.ToggleCardPreview);
+        _checkClosedFrame = Time.frameCount + 20;
     }
 
     public override List<ZoneItem> Items()

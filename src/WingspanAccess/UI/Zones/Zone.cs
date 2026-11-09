@@ -42,6 +42,11 @@ internal abstract class Zone
     {
     }
 
+    /// <summary>Called every frame while the zone is open (e.g. to read the result of an action).</summary>
+    public virtual void Tick()
+    {
+    }
+
     /// <summary>Index of the item the game has selected, so the cursor follows the game; -1 if none.</summary>
     public virtual int SelectedIndex(List<ZoneItem> items) => -1;
 

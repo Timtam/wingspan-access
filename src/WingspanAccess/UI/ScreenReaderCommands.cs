@@ -23,6 +23,9 @@ internal static class ScreenReaderCommands
             ConfirmPopupKeys.Tick(Screens.Top());
         }
 
+        Game.OnlineInviteAnnouncer.Tick();
+        Game.SpeechBubbleAnnouncer.Tick();
+
         if (Keys.Pressed(KeyCode.F1))
             ScreenReader.SayTransient(Loc.Get("help.keys"));
         if (Keys.Pressed(KeyCode.F2))

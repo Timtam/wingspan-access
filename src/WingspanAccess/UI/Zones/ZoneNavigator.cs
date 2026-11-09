@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using WingspanAccess.Game;
 using WingspanAccess.Localization;
 using WingspanAccess.Speech;
@@ -25,7 +26,8 @@ internal static class ZoneNavigator
         (KeyCode.Alpha4, () => new BirdfeederZone()),
         (KeyCode.Alpha5, () => new TrayZone()),
         (KeyCode.Alpha6, () => new SupplyZone()),
-        (KeyCode.Alpha7, () => new HandZone()),
+        // While the starting cards are chosen, they take the place of the still empty hand.
+        (KeyCode.Alpha7, () => StartCardsZone.Applies() ? new StartCardsZone() : new HandZone()),
         (KeyCode.Alpha8, () => new StatusZone()),
         (KeyCode.Alpha9, () => new PlayersZone()),
         (KeyCode.Alpha0, () => new GoalsZone()),
@@ -58,8 +60,15 @@ internal static class ZoneNavigator
         }
     }
 
-    /// <summary>Whether Enter belongs to the zone (choosing a player) instead of the game.</summary>
-    public static bool ConsumesEnter => _zone != null && _zone.HandlesEnter;
+    /// <summary>
+    /// The item under the cursor could not be selected in the game although the task lets zones
+    /// select (a tray card while choosing the starting cards): Enter would act on whatever the game
+    /// has selected instead.
+    /// </summary>
+    private static bool _enterBlocked;
+
+    /// <summary>Whether Enter belongs to the zone (choosing a player, or nothing to choose) instead of the game.</summary>
+    public static bool ConsumesEnter => _zone != null && (_zone.HandlesEnter || _enterBlocked);
 
     public static void Tick()
     {
@@ -81,6 +90,8 @@ internal static class ZoneNavigator
                     continue;
                 if (InGame(top))
                     Enter(key, create, screenId);
+                else if (top != null && top.TryCast<HabitatsOverview_Screen>() != null)
+                    ScreenReader.SayTransient(Loc.Get("overview.still_open"));
                 else if (top != null && IsGameScreen(top))
                     ScreenReader.SayTransient(Loc.Get("game.not_running"));
                 return;
@@ -88,8 +99,12 @@ internal static class ZoneNavigator
         }
 
         if (_zone == null)
+        {
+            HandZone.CloseLeftoverHand(top);
             return;
+        }
 
+        _zone.Tick();
         if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
             Leave(announce: true);
         else if (UnityEngine.Input.GetKeyDown(KeyCode.RightArrow))
@@ -104,8 +119,13 @@ internal static class ZoneNavigator
             Detail(1);
         else if (UnityEngine.Input.GetKeyDown(KeyCode.UpArrow))
             Detail(-1);
-        else if (_zone.HandlesEnter && (UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter)))
-            Activate();
+        else if (UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter))
+        {
+            if (_zone.HandlesEnter)
+                Activate();
+            else if (_enterBlocked)
+                ScreenReader.SayTransient(Loc.Get("zone.not_selectable"));
+        }
     }
 
     private static void Enter(KeyCode key, Func<Zone> create, int screenId)
@@ -121,6 +141,7 @@ internal static class ZoneNavigator
         _zone = create();
         _zoneKey = key;
         _index = -1;
+        _enterBlocked = false;
         _line = -1;
         _lines = null;
         _zone.OnEnter();
@@ -129,12 +150,20 @@ internal static class ZoneNavigator
 
     private static void Leave(bool announce)
     {
+        bool hand = _zone is HandZone;
         _zone?.OnLeave();
         _zone = null;
+        _enterBlocked = false;
         if (!announce)
             return;
         GamepadScreen top = Screens.Top();
-        ScreenReader.SayTransient(Loc.Get("zone.left", top == null ? string.Empty : UiText.ScreenName(top)));
+        string text = Loc.Get("zone.left", top == null ? string.Empty : UiText.ScreenName(top));
+
+        // In a task, also where the game's own selection is, which the arrow keys move from now on.
+        GameObject selected = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
+        if (!hand && top != null && top.TryCast<Decision>() != null && selected != null && selected.activeInHierarchy)
+            text = UiText.JoinSentences(new[] { text, UiText.Describe(selected) });
+        ScreenReader.SayTransient(text);
     }
 
     private static void Move(int step)
@@ -177,8 +206,7 @@ internal static class ZoneNavigator
         _line = -1;
         _lines = null;
         ZoneItem item = items[_index];
-        if (_zone is HandZone || SelectionAllowed(Screens.Top()))
-            _zone.Select(item);
+        _enterBlocked = (_zone is HandZone || SelectionAllowed(Screens.Top())) && !_zone.Select(item);
         ScreenReader.SayTransient($"{item.Summary}, {Loc.Get("position", _index + 1, items.Count)}");
     }
 

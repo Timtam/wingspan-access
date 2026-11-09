@@ -111,8 +111,50 @@ internal static class GoalMatDescriber
             Transform track = tracks.GetChild(i);
             if (!track.gameObject.activeInHierarchy || !track.name.StartsWith("GoalMatNectarTrackSliders"))
                 continue;
-            yield return Loc.Get("goalmat.nectar", Loc.Get("icon." + NectarHabitats[index]), Standings(track), Places(track));
+            yield return Loc.Get("goalmat.nectar", Loc.Get("icon." + NectarHabitats[index]), ModelNectarStandings(index) ?? Standings(track), Places(track));
             index++;
+        }
+    }
+
+    /// <summary>
+    /// "du 2, Rot 1": the nectar each player has spent in a habitat (0 forest, 1 grassland, 2
+    /// wetland), from the rules model. The board's portraits name players by color, and online
+    /// two players can have the same one.
+    /// </summary>
+    private static string ModelNectarStandings(int habitat)
+    {
+        try
+        {
+            var players = Game.GameStateCache.State?.Players;
+            if (players == null)
+                return null;
+
+            var standings = new List<string>();
+            for (int i = 0; i < players.Count; i++)
+            {
+                Rules.Player player = players[i];
+                Rules.SpentNectarCounter nectar = player?.SpentNectarCounter;
+                if (nectar == null)
+                    continue;
+                int count = habitat switch
+                {
+                    0 => nectar.Forest,
+                    1 => nectar.Grass,
+                    _ => nectar.Wet,
+                };
+                string entry = $"{Name(player)} {count}";
+                if (player.IsLocalPlayer())
+                    standings.Insert(0, entry);
+                else
+                    standings.Add(entry);
+            }
+
+            return standings.Count == 0 ? null : string.Join(", ", standings);
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Nectar standings for habitat {habitat} failed: {e.Message}");
+            return null;
         }
     }
 

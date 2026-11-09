@@ -24,6 +24,17 @@ internal static class OpponentWatcher
     }
 
     private static readonly Dictionary<string, Snapshot> Snapshots = new();
+
+    /// <summary>
+    /// The other players as they were when the local player's turn last began, and those whose turn
+    /// was announced since. Online the other player's moves arrive all at once while the game
+    /// reloads, without the current player changing on this side; their turn is then read when the
+    /// local player's turn begins.
+    /// </summary>
+    private static readonly Dictionary<string, Snapshot> AtLocalTurn = new();
+    private static readonly HashSet<string> Announced = new();
+    private static bool _turnPopupShown;
+    private static bool _localTurnStarting;
     private static string _currentPlayer;
     private static string _pendingPlayer;
     private static int _pendingFrame = -1;
@@ -53,6 +64,7 @@ internal static class OpponentWatcher
         {
             string previous = _currentPlayer;
             _currentPlayer = current;
+            Plugin.Logger.LogInfo($"[Opponent] current player {previous ?? "-"} -> {current}");
             if (previous != null)
             {
                 if (_pendingPlayer != null)
@@ -67,9 +79,53 @@ internal static class OpponentWatcher
         for (int i = 0; i < state.Players.Count; i++)
         {
             Rules.Player each = state.Players[i];
-            if (each != null && each.ID != current && each.ID != _pendingPlayer)
+            if (each != null && !string.IsNullOrEmpty(each.ID) && each.ID != current && each.ID != _pendingPlayer)
                 Snapshots[each.ID] = Take(each);
         }
+
+        // The local player's turn: the summary waits for its first task, which brings the fresh game
+        // state (online, the turn popup can still show the state from before the other moves).
+        GamepadScreen top = UI.Screens.Top();
+        bool turnPopup = top?.TryCast<NewTurnAnnouncement_Popup>() != null;
+        if (turnPopup && !_turnPopupShown)
+            _localTurnStarting = true;
+        _turnPopupShown = turnPopup;
+        if (_localTurnStarting && top?.TryCast<Decision>() != null && top.TryCast<WaitForOtherPlayer_Decision>() == null)
+        {
+            _localTurnStarting = false;
+            OnLocalTurn(state);
+        }
+    }
+
+    /// <summary>The local player's turn begins: reads the other players' turns nothing announced yet.</summary>
+    private static void OnLocalTurn(Rules.GameState state)
+    {
+        if (_pendingPlayer != null)
+        {
+            Summarize(state, _pendingPlayer);
+            _pendingPlayer = null;
+        }
+
+        for (int i = 0; i < state.Players.Count; i++)
+        {
+            Rules.Player player = state.Players[i];
+            // Right at the start of a game a player can be without an id yet.
+            if (player == null || string.IsNullOrEmpty(player.ID) || player.IsLocalPlayer())
+                continue;
+            Snapshot now = Take(player);
+            if (!Announced.Contains(player.ID) && AtLocalTurn.TryGetValue(player.ID, out Snapshot before))
+            {
+                string summary = Describe(player, before, now);
+                Plugin.Logger.LogInfo($"[Opponent] at the local turn, {player.ID}: {summary ?? "no change"}");
+                if (summary != null)
+                    ScreenReader.Say(summary, interrupt: false);
+            }
+
+            AtLocalTurn[player.ID] = now;
+            Snapshots[player.ID] = now;
+        }
+
+        Announced.Clear();
     }
 
     /// <summary>Announces the finished player's changes and remembers their new state.</summary>
@@ -84,7 +140,10 @@ internal static class OpponentWatcher
         {
             string summary = Describe(player, before, after);
             if (summary != null)
+            {
                 ScreenReader.Say(summary, interrupt: false);
+                Announced.Add(playerId);
+            }
         }
 
         Snapshots[playerId] = after;

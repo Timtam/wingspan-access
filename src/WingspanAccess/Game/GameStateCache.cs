@@ -19,6 +19,13 @@ internal static class GameStateCache
             Driver = driver;
     }
 
+    /// <summary>Takes the driver the board view is set up with or starts a turn with.</summary>
+    public static void Use(GameStateDriver driver)
+    {
+        if (driver != null)
+            Driver = driver;
+    }
+
     public static Rules.GameState State => Driver?.GameState;
 
     public static Rules.Player LocalPlayer
@@ -38,4 +45,20 @@ internal static class GameStateCache
             return null;
         }
     }
+}
+
+/// <summary>
+/// Online the game can reload the board with a new state when another player's moves arrive; the
+/// board view's turn start passes the current driver, so the cache follows before the next task.
+/// </summary>
+[HarmonyLib.HarmonyPatch(typeof(LocalGameStateView), nameof(LocalGameStateView.OnTurnStarted), new[] { typeof(GameStateDriver), typeof(BasePlayerController) })]
+internal static class TurnStartedPatch
+{
+    private static void Prefix(GameStateDriver gs) => GameStateCache.Use(gs);
+}
+
+[HarmonyLib.HarmonyPatch(typeof(LocalGameStateView), nameof(LocalGameStateView.Setup))]
+internal static class BoardSetupPatch
+{
+    private static void Prefix(GameStateDriver driver) => GameStateCache.Use(driver);
 }

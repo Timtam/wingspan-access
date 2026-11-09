@@ -22,8 +22,8 @@ internal static class UiText
     {
         try
         {
-            string special = SetupDescriber.Describe(target) ?? CardDescriber.Describe(target) ?? SaveDescriber.Describe(target) ??
-                NewsDescriber.Describe(target);
+            string special = SetupDescriber.Describe(target) ?? OverviewDescriber.Describe(target) ?? CardDescriber.Describe(target) ??
+                SaveDescriber.Describe(target) ?? NewsDescriber.Describe(target);
             if (special != null)
             {
                 string cardPosition = Position(target);
@@ -58,7 +58,7 @@ internal static class UiText
             // With a known name, only direct neighbours count; texts further up are usually the
             // decision's instruction, which was announced already.
             string name = NameOf(target);
-            var parts = name != null ? SiblingTexts(target) : ContextTexts(target);
+            var parts = name != null ? LabelTexts(SiblingTexts(target)) : ContextTexts(target);
             if (name != null)
                 parts.Add(name);
             label = parts.Count > 0 ? string.Join(", ", parts) : HumanizeTypeName(target.name);
@@ -72,6 +72,17 @@ internal static class UiText
         string description = role == null ? label : $"{label}, {role}";
         string position = Position(target);
         return position == null ? description : $"{description}, {position}";
+    }
+
+    /// <summary>
+    /// The texts next to a control named by its icon that label it: short ones ("Auflösung",
+    /// "1920 x 1080"). Sentences and whole panels of texts (a popup's explanation, the online
+    /// profile) are the screen's content, which its announcement has read already.
+    /// </summary>
+    private static List<string> LabelTexts(List<string> siblings)
+    {
+        siblings.RemoveAll(text => text.Length > 50);
+        return siblings.Count > 3 ? new List<string>() : siblings;
     }
 
     /// <summary>"Completed" for tutorial chapters already played (the list shows them in colour with a feather).</summary>
@@ -574,13 +585,20 @@ internal static class UiText
         // Zug" and "Asynchron, 72 Stunden pro Zug", which both offer a "Standardspiel". The search
         // stays inside the screen: the pause menu sits right on the game canvas, whose header holds
         // the opponents' speech bubbles.
+        // Controls outside the screen (the starting cards of the setup, which sit on the game canvas)
+        // only look at their own panel.
+        int levels = screen != null && !element.transform.IsChildOf(screen) ? 1 : 2;
         Transform panel = element.transform.parent;
-        for (int depth = 0; panel != null && depth < 2; depth++, panel = panel.parent)
+        for (int depth = 0; panel != null && depth < levels; depth++, panel = panel.parent)
         {
+            // A root canvas is the whole interface (the game canvas with the players' headers), never
+            // the panel of one group of controls.
+            if (IsRootCanvas(panel))
+                break;
             string header = HeaderTexts(panel, element.transform);
             if (header != null)
                 return header;
-            if (panel == screen || IsRootCanvas(panel))
+            if (panel == screen)
                 break;
         }
 

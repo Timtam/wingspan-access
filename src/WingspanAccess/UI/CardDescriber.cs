@@ -73,7 +73,8 @@ internal static class CardDescriber
         BirdData data = Data(view.ID);
         var parts = new List<string>();
         Add(parts, Get(texts, "Name_TMP") ?? Game.GameReader.BirdName((int)view.ID));
-        Add(parts, BoardState(view));
+        string boardState = BoardState(view);
+        Add(parts, boardState);
 
         string points = Get(texts, "VP_TMP") ?? data?.VictoryPoints.GetDecrypted().ToString();
         if (points != null)
@@ -83,7 +84,7 @@ internal static class CardDescriber
         string food = Get(texts, "Food_TMP");
         if (food != null)
             parts.Add(Loc.Get("card.food", food));
-        AddNest(parts, data);
+        AddNest(parts, data, boardState != null);
 
         string wingspan = Get(texts, "Wingspan_TMP");
         if (wingspan != null)
@@ -103,7 +104,7 @@ internal static class CardDescriber
 
     /// <summary>
     /// Lines for a bird without a card on screen (e.g. on another player's board): what the bird
-    /// database and the game state know. The power text is only printed on the card.
+    /// database and the game state know, and the power from the game's card texts.
     /// </summary>
     public static List<string> BirdLines(int id, Rules.Bird bird)
     {
@@ -121,10 +122,41 @@ internal static class CardDescriber
                 parts.Add(Loc.Get("card.food", food));
         }
 
-        AddNest(parts, data);
+        AddNest(parts, data, bird != null);
         if (data != null)
             parts.Add(Loc.Get("card.wingspan", $"{data.WingspanCM.GetDecrypted()}cm"));
+        Add(parts, PowerText(id, data));
         return parts;
+    }
+
+    /// <summary>
+    /// The power as the card prints it ("BEI AKTIVIERUNG: Erhalte 1 Samen ..."), from the game's texts:
+    /// the header after the bird's power type, the text after its id (like the name and the trivia).
+    /// </summary>
+    private static string PowerText(int birdId, BirdData data)
+    {
+        string nameTerm = TextLocalizationHelper.GetBirdCardNameTerm(birdId);
+        if (string.IsNullOrEmpty(nameTerm) || !nameTerm.Contains("/Names/"))
+            return null;
+        string power = Translate(nameTerm.Replace("/Names/", "/Powers/"));
+        if (power == null)
+            return null;
+        string header = data == null || data.BirdPowerHeader == BirdPowerHeader.None
+            ? null
+            : Translate("UI/ActionType/" + data.BirdPowerHeader);
+        return header == null ? power : $"{header} {power}";
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex Unfilled = new(@"\{\[[^\]]*\]\}");
+
+    private static string Translate(string term)
+    {
+        string text = I2.Loc.LocalizationManager.GetTranslation(term, true, 0, true, false, null, null, true);
+        if (string.IsNullOrEmpty(text))
+            return null;
+        // Values the card fills in itself ("{[DISCARDED_BONUS]}") stay out.
+        text = UiText.Clean(Unfilled.Replace(text, string.Empty));
+        return text.Length == 0 ? null : text;
     }
 
     /// <summary>
@@ -221,12 +253,16 @@ internal static class CardDescriber
         return habitats.Count == 0 ? null : Loc.Get("card.habitats", string.Join(", ", habitats));
     }
 
-    private static void AddNest(List<string> parts, BirdData data)
+    /// <summary>
+    /// The nest with the egg limit in one line ("Höhlennest, bis 4 Eier"); for a bird on a board only
+    /// the nest, since its eggs line says "0 von 4 Eiern" already.
+    /// </summary>
+    private static void AddNest(List<string> parts, BirdData data, bool onBoard)
     {
         if (data == null)
             return;
-        parts.Add(Loc.Get("card.nest", Loc.Get("nest." + data.NestType)));
-        parts.Add(Loc.Count("card.eggs", data.EggLimit.GetDecrypted()));
+        string nest = Loc.Get("card.nest", Loc.Get("nest." + data.NestType));
+        parts.Add(onBoard ? nest : $"{nest}, {Loc.Count("card.eggs", data.EggLimit.GetDecrypted())}");
     }
 
     private static string Playability(BirdData data)

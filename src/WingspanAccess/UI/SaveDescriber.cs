@@ -32,18 +32,41 @@ internal static class SaveDescriber
         if (Logged.Add(save.MatchId ?? string.Empty))
             Plugin.Logger.LogInfo($"[Save] id={save.MatchId} mode={save.GameType} round={save.RoundNumber} turn={save.TurnNumber} tokens={save.TokensLeft} date={save.GamePlayedDate} finished={save.IsFinished} players={save.PlayerCount} names={save.PlayerNames?.Count} portraits={save.Portraits?.Count} uiPortraits={slots[0].portraits?.Count} lastPlayed='{lastPlayed}'");
 
-        var parts = new List<string> { Loc.Get("save.title") };
+        // Online slots: invitations, running, finished and timed out games; local saves otherwise.
+        MatchUIOnlineInvitation invitation = slots[0].TryCast<MatchUIOnlineInvitation>();
+        MatchUIOnline online = slots[0].TryCast<MatchUIOnline>();
+        bool finished = slots[0].TryCast<MatchUIOnlineFinished>() != null;
+        bool timedOut = slots[0].TryCast<MatchUIOnlineTimeout>() != null;
+
+        var parts = new List<string>();
+        if (invitation != null)
+            parts.Add(Loc.Get("save.invite", HostName(invitation)));
+        else
+            parts.Add(Loc.Get(online != null ? "save.online" : "save.title"));
+
         string mode = save.GameType.ToString().Replace("_Online", string.Empty);
         if (Loc.Has("mode." + mode))
             parts.Add(Loc.Get("mode." + mode));
 
-        // The last save of a finished local game is round 5 with no turns left.
-        if (save.IsFinished || (save.RoundNumber >= 4 && save.TokensLeft == 0))
+        if (invitation != null)
         {
+            // An invitation's save is a placeholder: no rounds played yet.
+            if (invitation.NotReadyIndicator != null && invitation.NotReadyIndicator.activeInHierarchy)
+                parts.Add(Loc.Get("save.not_ready"));
+        }
+        else if (timedOut)
+        {
+            parts.Add(Loc.Get("save.timed_out"));
+        }
+        else if (finished || save.IsFinished || (save.RoundNumber >= 4 && save.TokensLeft == 0))
+        {
+            // The last save of a finished local game is round 5 with no turns left.
             parts.Add(Loc.Get("save.finished"));
         }
         else
         {
+            if (online != null)
+                parts.AddRange(OnlineState(online));
             parts.Add(Loc.Get("save.round", save.RoundNumber + 1));
             parts.Add(Loc.Count("save.turns_left", save.TokensLeft));
         }
@@ -54,7 +77,11 @@ internal static class SaveDescriber
         if (players.Length > 0)
             parts.Add(Loc.Get("save.players", players));
 
-        if (!string.IsNullOrEmpty(lastPlayed))
+        if (online != null)
+        {
+            // Online games: the turn state above says more than a date.
+        }
+        else if (!string.IsNullOrEmpty(lastPlayed))
         {
             parts.Add(lastPlayed);
         }
@@ -69,6 +96,30 @@ internal static class SaveDescriber
         }
 
         return string.Join(", ", parts);
+    }
+
+    private static string HostName(MatchUIOnlineInvitation invitation)
+    {
+        string host = invitation.Invite?.HostUsername;
+        if (string.IsNullOrEmpty(host) && invitation.hostNameText != null)
+            host = UiText.Clean(invitation.hostNameText.text);
+        return string.IsNullOrEmpty(host) ? Loc.Get("online.someone") : host;
+    }
+
+    /// <summary>Whose turn it is in a running online game and the time left for it.</summary>
+    private static IEnumerable<string> OnlineState(MatchUIOnline online)
+    {
+        if (online.yourTurn != null && online.yourTurn.isActiveAndEnabled)
+            yield return Loc.Get("save.your_turn");
+        else if (online.wait != null && online.wait.isActiveAndEnabled)
+            yield return Loc.Get("save.waiting");
+
+        if (online.timeLeftText != null && UiText.IsShown(online.timeLeftText))
+        {
+            string time = UiText.Clean(online.timeLeftText.text);
+            if (time.Length > 0)
+                yield return Loc.Get("save.time_left", time);
+        }
     }
 
     private static string Players(GameSave save)
