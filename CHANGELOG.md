@@ -5,6 +5,8 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-09
+
 ### Added
 
 - The game's notifications about your other online games are read ("It is your turn in an online

@@ -1,7 +1,7 @@
 <Project>
   <!-- Shared by the mod and the installer. The release workflow bumps ModVersion. -->
   <PropertyGroup>
-    <ModVersion>0.1.2</ModVersion>
+    <ModVersion>0.1.3</ModVersion>
     <Version>$(ModVersion)</Version>
     <!-- Disables the "+commit" suffix the SDK appends to the informational version. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
