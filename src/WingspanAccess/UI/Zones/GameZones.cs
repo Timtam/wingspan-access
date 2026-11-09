@@ -9,10 +9,17 @@ using WingspanAccess.Speech;
 
 namespace WingspanAccess.UI.Zones;
 
-/// <summary>The birds in one habitat of the board being read (your own unless another player was chosen).</summary>
+/// <summary>
+/// The birds in one habitat of the board being read (your own unless another player was chosen), then
+/// the row's next free place: what a bird costs there in eggs and what the action gives once it is
+/// there.
+/// </summary>
 internal sealed class HabitatZone : Zone
 {
     private readonly ActionType _habitat;
+
+    /// <summary>Marks the item for the row's next free place.</summary>
+    private static readonly object NextPlaceTag = new();
 
     public HabitatZone(ActionType habitat) => _habitat = habitat;
 
@@ -34,10 +41,80 @@ internal sealed class HabitatZone : Zone
         string birds = Loc.Count("game.birds_in_habitat", count);
         if (owner != null && ZoneNavigator.BoardOwner != null)
             return Loc.Get("zone.habitat_of", GameReader.PlayerName(owner), Loc.Get("habitat." + _habitat), birds);
-        // While choosing an action the habitat's action matters (Enter takes it); otherwise only the place.
+
+        // Choosing the habitat for a bird: what it costs here and what it unlocks.
+        PlayBird_Decision placing = PlacingBird();
+        HabitatRow row = owner == null ? null : HabitatRow.Read(owner, _habitat);
+        if (placing != null && row != null)
+            return PlaceText(row, placing._currentData);
+
+        // While choosing an action the habitat's action matters (Enter takes it), with what it gives now;
+        // otherwise only the place.
         bool choosing = Screens.Top()?.TryCast<ChooseAction_Decision>() != null;
+        string yield = choosing ? HabitatRow.Yield(_habitat, row?.Now) : null;
+        if (yield != null)
+            return Loc.Get("zone.habitat_action", Loc.Get("action." + _habitat), yield, birds);
         return $"{Loc.Get((choosing ? "action." : "habitat.") + _habitat)}, {birds}";
     }
+
+    /// <summary>The bird being played while its habitat is chosen, or null.</summary>
+    private static PlayBird_Decision PlacingBird()
+    {
+        PlayBird_Decision decision = Screens.Find<PlayBird_Decision>();
+        var state = decision?.CurrentState;
+        return state != null && state.TryCast<View.Decisions.PlayBird.States.HabitatSelectionStateController>() != null ? decision : null;
+    }
+
+    /// <summary>"Wald, Platz 3: kostet 1 Ei, schaltet frei: 2 Futter".</summary>
+    private string PlaceText(HabitatRow row, PlayBirdData bird)
+    {
+        string habitat = Loc.Get("habitat." + _habitat);
+        if (row.Full)
+            return Loc.Get("zone.habitat_full", habitat);
+        string cost = EggCostText(HabitatRow.EggCost(row.Used, bird?.BirdData, bird?.EggsDiscountChosenByPlayer ?? 0));
+        string unlocks = HabitatRow.Yield(_habitat, row.Next);
+        return unlocks == null
+            ? Loc.Get("zone.habitat_place_cost", habitat, row.NextPlace, cost)
+            : Loc.Get("zone.habitat_place", habitat, row.NextPlace, cost, unlocks);
+    }
+
+    private static string EggCostText(int eggs) => eggs <= 0 ? Loc.Get("zone.egg_cost_none") : Loc.Count("zone.egg_cost", eggs);
+
+    /// <summary>
+    /// The row's next free place: its egg cost (for the bird being played, if any) and what the action
+    /// gives once a bird is there, then (Up and Down) what it gives now, after the next bird, and the
+    /// egg costs of all places.
+    /// </summary>
+    private ZoneItem NextPlaceItem(HabitatRow row, PlayBirdData bird)
+    {
+        string now = HabitatRow.Yield(_habitat, row.Now);
+        string next = HabitatRow.Yield(_habitat, row.Next);
+        var details = new List<string>();
+        string summary;
+        if (row.Full)
+        {
+            summary = now == null ? Loc.Get("zone.no_place_plain") : Loc.Get("zone.no_place", now);
+            details.Add(summary);
+        }
+        else
+        {
+            string cost = EggCostText(HabitatRow.EggCost(row.Used, bird?.BirdData, bird?.EggsDiscountChosenByPlayer ?? 0));
+            summary = next == null
+                ? Loc.Get("zone.next_place_cost", row.NextPlace, row.Places, cost)
+                : Loc.Get("zone.next_place", row.NextPlace, row.Places, cost, next);
+            if (now != null)
+                details.Add(Loc.Get("zone.yield_now", now));
+            if (next != null)
+                details.Add(Loc.Get("zone.yield_next", next));
+        }
+
+        details.Add(Loc.Get("zone.egg_costs", HabitatRow.EggCostList()));
+        return new ZoneItem { Summary = summary, Details = () => details, Tag = NextPlaceTag };
+    }
+
+    /// <summary>The next place stands for the habitat itself: while a bird's habitat is chosen, Enter takes this one.</summary>
+    public override bool Select(ZoneItem item) =>
+        ReferenceEquals(item.Tag, NextPlaceTag) ? PlacingBird() != null : base.Select(item);
 
     public override void OnEnter()
     {
@@ -70,6 +147,9 @@ internal sealed class HabitatZone : Zone
             });
         }
 
+        HabitatRow row = Owner == null ? null : HabitatRow.Read(Owner, _habitat);
+        if (row != null)
+            items.Add(NextPlaceItem(row, own ? PlacingBird()?._currentData : null));
         return items;
     }
 
@@ -439,35 +519,153 @@ internal sealed class HandZone : Zone
         return -1;
     }
 
-    /// <summary>Steps the game's own hand selection to the card (the way the gamepad does).</summary>
+    /// <summary>The card the zone is moving the game's selection to while the game catches up (null: none).</summary>
+    private CardView _target;
+
+    /// <summary>Frame of the next try toward the target, and the frame after which the zone gives up.</summary>
+    private int _nextTry, _giveUpFrame;
+
+    /// <summary>Tries so far to get a first card selected for the target.</summary>
+    private int _tries;
+
+    /// <summary>Whether the card preview button was pressed for the target (once).</summary>
+    private bool _previewPressed;
+
+    public override bool SelectionPending => _target != null;
+
+    public override void Tick()
+    {
+        if (_target == null || Time.frameCount < _nextTry)
+            return;
+        if (Time.frameCount > _giveUpFrame)
+        {
+            Plugin.Logger.LogInfo($"[Zone] hand: gave up selecting {_target.name}; {State()}");
+            _target = null;
+            return;
+        }
+
+        StepToTarget();
+    }
+
+    /// <summary>Moves the game's own hand selection to the card, the way the gamepad does.</summary>
     public override bool Select(ZoneItem item)
     {
+        _target = null;
         PlayerHandUI hand = Hand;
-        if (hand == null || !(hand.IsInCardPreview || IsHandTask(Screens.Top())))
+        if (hand == null || item.Tag is not CardView card || !(hand.IsInCardPreview || IsHandTask(Task())))
             return false;
 
+        _target = card;
+        _tries = 0;
+        _previewPressed = false;
+        _nextTry = 0;
+        _giveUpFrame = Time.frameCount + 180;
+        return StepToTarget();
+    }
+
+    /// <summary>The decision the hand is used for, also under a tutorial bubble.</summary>
+    private static Decision Task() => Screens.Find<Decision>();
+
+    /// <summary>
+    /// Steps the game's hand selection toward the target; true once the target is selected. While
+    /// playing a bird the hand's own steps move it (the card preview is open). Other tasks (discarding,
+    /// tucking) use their own "next card" and "previous card", which the gamepad's shoulder buttons and
+    /// Tab call. Where the game needs a few frames for the first card, Tick tries again.
+    /// </summary>
+    private bool StepToTarget()
+    {
+        PlayerHandUI hand = Hand;
         List<ZoneItem> items = Items();
-        int target = items.FindIndex(other => ReferenceEquals(other.Tag, item.Tag) ||
-            (other.Tag is CardView a && item.Tag is CardView b && a.GetInstanceID() == b.GetInstanceID()));
+        int target = _target == null ? -1 : items.FindIndex(other => other.Tag is CardView card && card.GetInstanceID() == _target.GetInstanceID());
+        if (hand == null || target < 0)
+        {
+            _target = null;
+            return false;
+        }
+
+        Decision task = Task();
+        bool playing = task == null || task.TryCast<ChooseAction_Decision>() != null;
         for (int guard = 0; guard < 20; guard++)
         {
             int current = SelectedIndex(items);
-            if (current < 0 && guard == 0)
+            if (current == target)
             {
-                // Discarding from the hand starts without a selected card; the first step selects one.
+                _target = null;
+                return true;
+            }
+
+            if (current >= 0)
+            {
+                Step(playing ? null : task, hand, current < target);
+                continue;
+            }
+
+            if (playing)
+            {
+                // The open hand without a selected card: one step selects one.
+                if (guard > 0)
+                    break;
                 hand.NextCard();
                 continue;
             }
 
-            if (current < 0 || current == target)
-                return current == target;
-            if (current < target)
-                hand.NextCard();
+            // Discarding or tucking starts without a selected card. Like the gamepad, the task's "next
+            // card" selects the first one (the hand's own steps do nothing there: its input mode stays
+            // Mouse); a closed hand is opened with the card preview button first.
+            _tries++;
+            string how;
+            if (!hand.IsInCardPreview && !_previewPressed)
+            {
+                how = "the card preview button";
+                _previewPressed = true;
+                KeyboardBridge.Press(VirtualGamepad.Buttons.ToggleCardPreview);
+            }
             else
-                hand.PreviousCard();
+            {
+                how = "the task's next card";
+                task.NextCard();
+            }
+
+            if (SelectedIndex(items) >= 0)
+                continue;
+            Plugin.Logger.LogInfo($"[Zone] hand: no card selected after {how} (try {_tries}); {State()}");
+            _nextTry = Time.frameCount + 20;
+            return false;
         }
 
+        _target = null;
         return false;
+    }
+
+    private static void Step(Decision task, PlayerHandUI hand, bool next)
+    {
+        if (task != null && next)
+            task.NextCard();
+        else if (task != null)
+            task.PreviousCard();
+        else if (next)
+            hand.NextCard();
+        else
+            hand.PreviousCard();
+    }
+
+    /// <summary>The hand's state for the log: card preview, mode, the selected card, the task's choice.</summary>
+    public static string State()
+    {
+        PlayerHandUI hand = Hand;
+        if (hand == null)
+            return "no hand";
+        GameObject selected = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
+        Decision task = Task();
+        string choice = string.Empty;
+        var select = task?.TryCast<View.UI.Game.Decisions.Base.BaseSelectBird_Decision>();
+        if (select != null)
+            choice = $", chosen {select._cardsSelected?.Count ?? 0} of {select._amountToChoose}, choice shown {select._birdCardChoice?.IsPresenting}";
+        CardView card = hand.SelectedCard;
+        return $"task {(task == null ? "-" : task.GetIl2CppType().Name)}, preview {hand.IsInCardPreview}/{hand.inCardsPreview}, mode {hand.handMode}, " +
+            $"input {hand.InputMode}, locked {hand.HandHandlingLocked}, about to play {hand.aboutToPlayMode}, " +
+            $"hand selection {(card == null ? "-" : card.name)} #{hand.carouselSelectedIndex}, " +
+            $"selected {(selected == null ? "-" : UiText.PathOf(selected))}{choice}";
     }
 }
 

@@ -13,7 +13,7 @@ param(
     [string]$WingspanDir = 'C:\Program Files (x86)\Steam\steamapps\common\Wingspan',
     [string]$Output = (Join-Path $PSScriptRoot '..\lib\interop'),
     [string[]]$Assemblies = @(
-        'ACTk.Runtime', 'I2Loc', 'Il2Cppmscorlib', 'Rewired_Core', 'ScriptAssembly', 'Unity.TextMeshPro',
+        'ACTk.Runtime', 'I2Loc', 'Il2Cppmscorlib', 'Il2CppSystem.Core', 'Rewired_Core', 'ScriptAssembly', 'Unity.TextMeshPro',
         'UnityEngine.CoreModule', 'UnityEngine.InputLegacyModule', 'UnityEngine.UI', 'UnityEngine.UIModule'
     )
 )

@@ -15,6 +15,7 @@ internal static class GamepadExperiment
         GamepadController controller = GamepadController.I;
         Plugin.Logger.LogInfo(
             $"[Experiment] HasController={controller?.HasController()} mouseOrKeyboard={controller?.LastControllerIsMouseOrKeyboard()}");
+        Plugin.Logger.LogInfo($"[Experiment] hand before: {UI.Zones.HandZone.State()}");
 
         foreach (PlayerHandUI hand in Object.FindObjectsOfType<PlayerHandUI>())
         {
@@ -49,6 +50,7 @@ internal static class GamepadExperiment
 
         GameObject selected = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
         Plugin.Logger.LogInfo($"[Experiment] selection after default: {(selected == null ? "<none>" : UiText.PathOf(selected))}");
+        Plugin.Logger.LogInfo($"[Experiment] hand after: {UI.Zones.HandZone.State()}");
         Speech.ScreenReader.SayTransient("Experiment done");
     }
 }

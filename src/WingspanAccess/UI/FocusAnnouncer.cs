@@ -27,6 +27,12 @@ internal static class FocusAnnouncer
     private static int _focusSpokenFrame = -1000;
     private static bool _selectionHiddenByHint;
 
+    /// <summary>Frame of the last arrow key or Tab outside the zones: a selection change right after it is the player's own.</summary>
+    private static int _navigationKeyFrame = -1000;
+
+    /// <summary>How long after such a key a selection change still counts as the player's (half a second).</summary>
+    private const int NavigationFrames = 30;
+
     private static UnityEngine.UI.Toggle _toggle;
     private static UnityEngine.UI.Slider _slider;
     private static TMPro.TMP_Dropdown _dropdown;
@@ -96,7 +102,10 @@ internal static class FocusAnnouncer
                 // name: read it again.
                 GameObject current = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
                 if (Time.frameCount - _focusSpokenFrame < 30 && current != null && current.transform.IsChildOf(top.transform))
+                {
                     _lastSelectionId = -1;
+                    _lastGroupId = 0; // its group (the tutorial's course tab) is looked up in the right screen now
+                }
             }
         }
 
@@ -115,13 +124,16 @@ internal static class FocusAnnouncer
         // The selection the game or the guard sets right after a screen change follows the screen's
         // announcement instead of cutting it off.
         bool settling = Time.frameCount <= _screenChangedFrame + SelectionGraceFrames + 1;
+        if (!Zones.ZoneNavigator.IsActive && NavigationKeyDown())
+            _navigationKeyFrame = Time.frameCount;
         TrackSelection(top, interrupt: !settling, silent: starting);
-        WatchValue();
+        WatchValue(top);
         WatchPopupTexts(top);
         DecisionAnnouncer.Tick(top);
         GoalMatDescriber.Tick(top);
         GameEndDescriber.Tick(top);
         NewsDescriber.Tick(top);
+        AtlasDescriber.Tick(top);
         Game.GameStateCache.Update(top);
         Game.ActionAnnouncer.Tick(top);
         Game.OpponentWatcher.Tick();
@@ -183,7 +195,8 @@ internal static class FocusAnnouncer
         }
 
         // Key hints may belong to a base type, e.g. all decisions that discard cards from the hand.
-        for (Il2CppSystem.Type type = screen.GetIl2CppType(); type != null; type = type.BaseType)
+        // Back from the atlas's filters, the atlas's hint is not read again.
+        for (Il2CppSystem.Type type = AtlasDescriber.Returning(screen) ? null : screen.GetIl2CppType(); type != null; type = type.BaseType)
         {
             string hint = "hint." + type.Name;
             if (Localization.Loc.Has(hint))
@@ -263,6 +276,8 @@ internal static class FocusAnnouncer
                 top.TrySelectDefault();
                 GameObject now = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
                 Plugin.Logger.LogInfo($"[Focus] after default selection: {(now == null ? "<none>" : UiText.PathOf(now))}");
+                if (Zones.HandZone.IsHandTask(top) && top.TryCast<ChooseAction_Decision>() == null)
+                    Plugin.Logger.LogInfo($"[Focus] hand: {Zones.HandZone.State()}");
             }
             else
             {
@@ -376,12 +391,18 @@ internal static class FocusAnnouncer
         }
 
         // Under a tutorial bubble the game already selects the decision's first element. The bubble
-        // is read now; the selection follows once the bubble closes.
+        // is read now; the selection follows once the bubble closes. The arrow keys still move the
+        // selection under the bubble (between the bonus cards to choose, say); that is read at once.
         if (top != null && top.TryCast<Tutorial.HintAnnouncerBase>() != null && !selected.transform.IsChildOf(top.transform))
         {
-            Plugin.Logger.LogInfo($"[Focus] (under hint) {UiText.PathOf(selected)}");
-            _selectionHiddenByHint = true;
-            return;
+            if (Time.frameCount - _navigationKeyFrame > NavigationFrames)
+            {
+                Plugin.Logger.LogInfo($"[Focus] (under hint) {UiText.PathOf(selected)}");
+                _selectionHiddenByHint = true;
+                return;
+            }
+
+            _selectionHiddenByHint = false;
         }
 
         string description = UiText.Describe(selected);
@@ -390,7 +411,8 @@ internal static class FocusAnnouncer
         if (groupId != _lastGroupId)
         {
             _lastGroupId = groupId;
-            string group = UiText.GroupLabel(selected, top == null ? null : top.transform);
+            string group = UiText.TabLabel(selected, top == null ? null : top.transform) ??
+                UiText.GroupLabel(selected, top == null ? null : top.transform);
             // A header the screen announcement began with (the title of the chapter summary) is
             // not repeated before the button.
             if (group != null && !description.StartsWith(group) && !_screenWords.StartsWith(Words(group)))
@@ -402,13 +424,20 @@ internal static class FocusAnnouncer
         _focusSpokenFrame = Time.frameCount;
     }
 
-    private static void WatchValue()
+    private static bool NavigationKeyDown() =>
+        UnityEngine.Input.GetKeyDown(KeyCode.LeftArrow) || UnityEngine.Input.GetKeyDown(KeyCode.RightArrow) ||
+        UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) || UnityEngine.Input.GetKeyDown(KeyCode.DownArrow) ||
+        UnityEngine.Input.GetKeyDown(KeyCode.Tab);
+
+    private static void WatchValue(GamepadScreen top)
     {
         WatchInput();
 
         // Enter on an option that is already chosen (the preselected "Ja" of a yes/no question)
         // changes nothing in the game; its state is repeated so the key does not go unanswered.
+        // Only where Enter reaches the option: under a tutorial bubble, Enter turns the bubble's page.
         if (_toggle != null && _toggle.isOn && !Zones.ZoneNavigator.IsActive &&
+            top != null && _toggle.transform.IsChildOf(top.transform) &&
             (UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter)))
             _repeatChosenFrame = Time.frameCount + 10;
         if (_repeatChosenFrame > 0 && Time.frameCount >= _repeatChosenFrame)

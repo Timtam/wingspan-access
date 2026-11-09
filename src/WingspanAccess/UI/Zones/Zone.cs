@@ -50,6 +50,12 @@ internal abstract class Zone
     /// <summary>Index of the item the game has selected, so the cursor follows the game; -1 if none.</summary>
     public virtual int SelectedIndex(List<ZoneItem> items) => -1;
 
+    /// <summary>
+    /// Whether the selection asked for by <see cref="Select"/> is still on its way: the game makes some
+    /// a few frames later (opening the hand for a discard), and the zone's Tick goes on with it.
+    /// </summary>
+    public virtual bool SelectionPending => false;
+
     /// <summary>Makes the game select the item, so Enter and Space act on it. False if the game does not offer it now.</summary>
     public virtual bool Select(ZoneItem item)
     {

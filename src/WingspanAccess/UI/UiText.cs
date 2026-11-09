@@ -575,8 +575,59 @@ internal static class UiText
     /// Label of the group the element belongs to: a text that is a direct sibling of the element
     /// (e.g. "Wissenswertes anzeigen:" above a set of options).
     /// </summary>
+    /// <summary>
+    /// For an element on one of several tabs (the tutorial's courses, the shop's pages): the tab's
+    /// name and place, "Europa-Erweiterung, Reiter 2 von 5"; null elsewhere. Spoken when the
+    /// selection enters the tab, so switching with Control+Tab says where it went.
+    /// </summary>
+    public static string TabLabel(GameObject element, Transform screen)
+    {
+        View.UI.Utils.Tabs.Tab tab = element.GetComponentInParent<View.UI.Utils.Tabs.Tab>();
+        if (tab == null || screen == null)
+            return null;
+
+        foreach (View.UI.Utils.Tabs.TabsManager manager in screen.GetComponentsInChildren<View.UI.Utils.Tabs.TabsManager>(true))
+        {
+            var toggles = manager.visibleTabToggles;
+            if (toggles == null || toggles.Count < 2)
+                continue;
+            for (int i = 0; i < toggles.Count; i++)
+            {
+                View.UI.Utils.Tabs.TabToggle toggle = toggles[i];
+                if (toggle == null || toggle.ControlledTab == null || toggle.ControlledTab.GetInstanceID() != tab.GetInstanceID())
+                    continue;
+                return Loc.Get("tab.label", TabName(toggle, element), i + 1, toggles.Count);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The text on the tab's button; for the tutorial's courses (icons only) the course's name.</summary>
+    private static string TabName(View.UI.Utils.Tabs.TabToggle toggle, GameObject element)
+    {
+        foreach (TMPro.TMP_Text text in toggle.GetComponentsInChildren<TMPro.TMP_Text>(false))
+        {
+            string clean = Clean(text.text);
+            if (clean.Length > 0)
+                return clean;
+        }
+
+        TutorialTabContentManager course = element.GetComponentInParent<TutorialTabContentManager>();
+        if (course != null && Loc.Has("course." + course.Course))
+            return Loc.Get("course." + course.Course);
+        return string.IsNullOrEmpty(toggle.TabName) ? Loc.Get("tab.unnamed") : toggle.TabName;
+    }
+
     public static string GroupLabel(GameObject element, Transform screen = null)
     {
+        // Groups named in the language files by their panel and its parent ("group.FilterToggles/Food":
+        // the food row of the atlas filters, whose header is only icons).
+        Transform group = element.transform.parent;
+        string groupKey = group == null || group.parent == null ? null : $"group.{group.parent.name}/{group.name}";
+        if (groupKey != null && Loc.Has(groupKey))
+            return Loc.Get(groupKey);
+
         List<string> siblings = SiblingTexts(element);
         if (siblings.Count > 0)
             return siblings[0];

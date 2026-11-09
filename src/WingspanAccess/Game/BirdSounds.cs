@@ -18,6 +18,8 @@ internal static class BirdSounds
         bool voice = UnityEngine.Input.GetKeyDown(KeyCode.V);
         if ((!song && !voice) || Input.KeyboardBridge.TextFieldHasFocus() || ModifierHeld())
             return;
+        if (UI.AtlasDescriber.TryPlay(song))
+            return;
 
         int id = CurrentBird(out BaseBirdCardView view);
         if (id <= 0)
@@ -75,6 +77,11 @@ internal static class BirdSounds
             view = FindView(id);
             return id;
         }
+
+        // The bird the atlas has framed.
+        id = UI.AtlasDescriber.CurrentBirdId;
+        if (id > 0)
+            return id;
 
         GameObject selected = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
         CardView card = selected == null ? null : CardDescriber.FindCardView(selected);

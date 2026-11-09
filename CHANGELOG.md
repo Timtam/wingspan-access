@@ -5,6 +5,36 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Added
+
+- Zones 1 to 3 end with the habitat's next free place: what a bird costs there in eggs and what the
+  habitat's action gives once it is there ("Next place 3 of 5: costs 1 egg, then 2 food"). Up and
+  Down read what the action gives now and after the next bird, and the egg cost of every place.
+  While you choose an action, 1 to 3 also say what the action gives now ("Forest: gain food, gives
+  1 food, trade 1 card for 1 more food"); while you choose the habitat for a bird, what the bird
+  costs there and what it unlocks ("Forest, place 3: costs 1 egg, unlocks: 2 food").
+- The tutorial menu reaches the tutorials of the expansions: Left and Right switch between the base
+  game and the expansions (the gamepad's shoulder buttons), Up and Down go through the chapters in
+  order, and Home and End jump to the first and the last. The selection says which course it is on
+  ("Europe, tab 2 of 5"), and the menu tells about the keys when it opens.
+- The bird atlas ("Birds" in the main menu) is accessible: Left and Right go through the birds with
+  their place ("Blue Jay, 2 of 521"; birds not unlocked yet are "face down"), Up and Down read the
+  bird line by line (with Latin name, continents and trivia), Enter opens it, S and V play its call
+  and spoken trivia. X opens sorting and filters: the icon buttons have names, the rows say what
+  they filter ("Food: fruit, check box, off, 2 of 8"), and each change says how many birds are
+  left. Arrow keys and Enter in the atlas no longer reach the main menu behind it.
+
+### Fixed
+
+- Zone 7 selects the card again when a task asks for a card from your hand (discarding a card for
+  more food, tucking a card): Left and Right move the game's own selection there, and Enter marks
+  the card. Before, the tutorial got stuck at "click the Bald Eagle card", because Enter only said
+  "not selectable here".
+- Enter on a tutorial bubble no longer says "selected": the repeated state of an option already
+  chosen is only read when Enter reaches that option, not when it turns a bubble's page.
+- While a tutorial bubble is open, moving the selection under it with the arrow keys (between the
+  bonus cards to choose, say) reads the new selection at once instead of only after the bubble.
+
 ## [0.1.3] - 2026-11-09
 
 ### Added

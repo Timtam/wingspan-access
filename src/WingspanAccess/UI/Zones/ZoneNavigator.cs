@@ -74,6 +74,9 @@ internal static class ZoneNavigator
     /// </summary>
     private static bool _enterBlocked;
 
+    /// <summary>The game is still making the item's selection (see <see cref="Zone.SelectionPending"/>); Enter waits for it.</summary>
+    private static bool _selectionPending;
+
     /// <summary>Whether Enter belongs to the zone (choosing a player, or nothing to choose) instead of the game.</summary>
     public static bool ConsumesEnter => IsActive && (_zone.HandlesEnter || _enterBlocked);
 
@@ -120,6 +123,14 @@ internal static class ZoneNavigator
         }
 
         _zone.Tick();
+
+        // A selection the game makes a few frames late (the first card to discard) frees Enter once it is there.
+        if (_selectionPending && !_zone.SelectionPending)
+        {
+            _selectionPending = false;
+            _enterBlocked = _index < 0 || _zone.SelectedIndex(_zone.Items()) != _index;
+        }
+
         if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
             Leave(announce: true);
         else if (UnityEngine.Input.GetKeyDown(KeyCode.RightArrow))
@@ -138,7 +149,7 @@ internal static class ZoneNavigator
         {
             if (_zone.HandlesEnter)
                 Activate();
-            else if (_enterBlocked)
+            else if (_enterBlocked && !_selectionPending)
                 ScreenReader.SayTransient(Loc.Get("zone.not_selectable"));
         }
     }
@@ -204,6 +215,7 @@ internal static class ZoneNavigator
         _zoneKey = key;
         _index = -1;
         _enterBlocked = false;
+        _selectionPending = false;
         _line = -1;
         _lines = null;
         _zone.OnEnter();
@@ -218,6 +230,7 @@ internal static class ZoneNavigator
         _paused = false;
         _resumeFrame = 0;
         _enterBlocked = false;
+        _selectionPending = false;
         if (!announce)
             return;
         GamepadScreen top = Screens.Top();
@@ -271,6 +284,7 @@ internal static class ZoneNavigator
         _lines = null;
         ZoneItem item = items[_index];
         _enterBlocked = (_zone is HandZone || SelectionAllowed(Screens.Top())) && !_zone.Select(item);
+        _selectionPending = _enterBlocked && _zone.SelectionPending;
         ScreenReader.SayTransient($"{item.Summary}, {Loc.Get("position", _index + 1, items.Count)}");
     }
 

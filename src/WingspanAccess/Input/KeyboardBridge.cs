@@ -53,9 +53,16 @@ internal static class KeyboardBridge
         ["CustomGameChooseMode_Popup"] = (() => VirtualGamepad.Buttons.PreviewPlayerLeft, () => VirtualGamepad.Buttons.PreviewPlayerRight),
         // Goal board and nectar board tabs.
         ["GoalAndNectarMat_Screen"] = (() => VirtualGamepad.Buttons.PreviewPlayerLeft, () => VirtualGamepad.Buttons.PreviewPlayerRight),
+        // The tutorial's courses: base game and expansions (Up and Down go through the chapters, see TutorialMenuKeys).
+        [UI.TutorialMenuKeys.ScreenType] = (() => VirtualGamepad.Buttons.PreviewPlayerLeft, () => VirtualGamepad.Buttons.PreviewPlayerRight),
     };
 
     private static int _pageLeftFrames, _pageRightFrames;
+
+    private static readonly (KeyCode Key, int Step)[] ChapterKeys =
+    {
+        (KeyCode.DownArrow, 1), (KeyCode.UpArrow, -1), (KeyCode.Home, int.MinValue), (KeyCode.End, int.MaxValue),
+    };
 
     /// <summary>Screens whose controls the game's arrow navigation does not reach (see <see cref="MoveSelection"/>).</summary>
     private static readonly HashSet<string> OwnNavigationScreens = new() { "FriendsList_Screen" };
@@ -120,6 +127,16 @@ internal static class KeyboardBridge
         TrackSetupCard(top);
         if (!UI.Zones.ZoneNavigator.IsActive && UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) && SelectSetupCardAbove(top))
             Swallowed.Add(KeyCode.UpArrow);
+
+        // In the tutorial menu Up and Down go through the chapters in order, Home and End jump.
+        if (!UI.Zones.ZoneNavigator.IsActive)
+        {
+            foreach (var (key, step) in ChapterKeys)
+            {
+                if (!Swallowed.Contains(key) && UnityEngine.Input.GetKeyDown(key) && UI.TutorialMenuKeys.TryMove(top, step))
+                    Swallowed.Add(key);
+            }
+        }
 
         // On a card where the game has nowhere to go, Up and Down read the card line by line.
         UI.CardLineReader.Follow();
@@ -218,7 +235,8 @@ internal static class KeyboardBridge
             VirtualGamepad.SetButton(button, pressedButtons.Contains(button));
 
         // On the goal board and the final result Up and Down read lines (see GoalMatDescriber, GameEndDescriber).
-        bool lines = topType != null && (UI.GoalMatDescriber.TakesArrows(topType) || UI.GameEndDescriber.TakesArrows(topType));
+        bool lines = topType != null && (UI.GoalMatDescriber.TakesArrows(topType) || UI.GameEndDescriber.TakesArrows(topType) ||
+            UI.AtlasDescriber.TakesArrows(topType));
         float y = zone || lines ? 0f : Held(KeyCode.UpArrow, ref _upFrames) - Held(KeyCode.DownArrow, ref _downFrames);
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationX, x);
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationY, y);

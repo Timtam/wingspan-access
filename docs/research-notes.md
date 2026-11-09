@@ -412,3 +412,37 @@ Escape leaves. Enter, Space and Tab stay with the game. The key table is at the 
   voice-over buttons (`BirdSongButton`, `BirdVOButton`); it is not made accessible yet.
 - With all expansions (521 bird cards) a game against the AI started and played: start selection,
   nectar in the supply and payments, opponent summaries with nectar.
+
+### Hand cards for tasks, habitat rewards (2026-11-09, evening)
+
+- Discarding or tucking a card from the hand (`DiscardBirds_Decision`, a `BaseSelectBird_Decision`):
+  the hand is in card preview, but `PlayerHandUI.InputMode` stays `Mouse` and nothing is selected,
+  so `PlayerHandUI.NextCard()` does nothing. The decision's own `NextCard()` (what the gamepad's
+  NextCard button calls) selects the first card at once; zone 7 steps with it.
+- The tutorial's `ChooseBirdCardTask` blocks the confirm button with a warning popup
+  (`ChooseBaldEaglePopup`, "Please choose the Bald Eagle") until the right card is chosen.
+- What a habitat's action gives: `PlayerMatsDatabase.Instance.GetTrackAbility(gameState, player,
+  habitat)` for now, `GetTrackAbility(matType, habitat, level)` for any level (`GetLevel(player,
+  habitat)`, mats `Base` and `OE`). `TrackAbilityData` has `AmountToGain`, `CanDiscard{Food,
+  Nectar,Egg,Card}ToGainMore`, `MaxExchangesCount` and `CanDiscardFoodToReRoll`.
+- The eggs a bird costs in a place: `Rulebook.EggsRequiredToPlayABird(slotIndex, birdData,
+  eggsDiscount)`; `Rules.Track` has `GetSlotsCount()`, `HasEmptySlotsLeft()` and
+  `MAX_SLOTS_COUNT`.
+- The tutorial menu (`TutorialGamepadScreen`) has a tab per course (`TutorialCourse`: BaseGame,
+  European, Oceania, Asia, Duet; the tab buttons read "Hauptspiel", "Europa", "Ozeanien", "Asien",
+  "Asien: Duell"). Its `PreviewPlayerLeft/Right` (the gamepad's shoulder buttons) switch them, wrap
+  around and select the course's first chapter. The chapters (`TutorialMenuButtonDynamic`, objects
+  `TutorialMenuSlot(Clone)`) form a grid of 4 columns under `<Course>Course/RectMask/Content`.
+  `TabsManager.visibleTabToggles` holds the tab buttons (`TabToggle.ControlledTab`).
+- The bird atlas (`AtlasGamepadScreen`, main menu "Vögel") is a wall of 521 cards in rows of 5
+  (`BirdAtlasManager`). Its arrow navigation moves `AtlasBirdIndex` (Left/Right bird by bird across
+  the rows, Up/Down by 5) and sets `SelectedBirdID` and `_isUnlockedBird`; it has no UI selection, so
+  the main menu's selection stays behind it and moves with the arrows. `SelectedBirdID` is 0 at
+  first and keeps the old bird after sorting or filtering until the frame moves; the bird at a
+  place is `allBirdsSort[index].BirdName`, or `filterdBirds[index]` while filters are on
+  (`_activeFilters`, `_unlockedBirdsFilter`). Locked birds have a face-down card in
+  `_disabledCardsDict` (by bird id). `CardSelected` is true while a bird is opened (Enter);
+  `BirdInfo.PlayBirdSong()`/`PlayBirdVO()` play its sounds (BirdAudioManager.PlayMain has no call
+  loaded on the wall). The filters (`AtlasFiltersGamepadScreen`, X) are ordinary toggles under
+  `AtlasModule/SortCanvas/FilterToggles/<row>`; the sort toggles named `VP` sort by points
+  (`_currentSortType`), the game's initial check mark can sit on another one.

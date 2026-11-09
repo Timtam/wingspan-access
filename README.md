@@ -38,11 +38,17 @@ The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 - **Tutorial.** Each hint of the tutorial is read in full, with the card it shows. Where a hint asks
   you to click something, the mod then says which keys do it, for example "Press 2 for grassland" or
   "Press 7 for your hand, choose Blue Jay with Left and Right and press Enter". The chapter list says
-  which chapters you have completed.
+  which chapters you have completed: Up and Down go through the chapters, Home and End jump to the
+  first and the last, and Left and Right switch between the base game and the expansions.
 - **News.** The news window that opens at start is announced with its first entry; Enter reads a
   news item in full.
 - **Bird facts and calls.** The Latin name, the continents and the trivia text of every bird card can
   be read in the zones; S plays the bird's call and V the game's spoken trivia.
+- **Bird atlas.** "Birds" in the main menu: Left and Right go through the birds ("Blue Jay, 2 of
+  521"; birds you have not unlocked yet are "face down"), Up and Down read the bird line by line.
+  Enter opens a bird and Escape closes it again; S and V play its call and spoken trivia. X opens
+  sorting and filters (food, nest, habitat, power, expansion, unlocked birds), where every icon has
+  a name and each filter says how many birds it leaves.
 - **Expansions.** Games with all expansions (Europe, Oceania, Asia, bird packs) start and play,
   including nectar; many expansion powers are still untested.
 
@@ -145,7 +151,7 @@ while drawing or the hand.
 
 | Key | Zone |
 | --- | --- |
-| 1, 2, 3 | Forest, grassland, wetland: the birds in that habitat. Also moves the view there, so Enter takes that habitat's action |
+| 1, 2, 3 | Forest, grassland, wetland: the birds in that habitat, then its next free place: what a bird costs there in eggs and what the habitat's action gives once it is there (Up and Down: what the action gives now and after the next bird, and the egg cost of every place). Also moves the view there, so Enter takes that habitat's action. While you choose an action, the zone's name also says what the action gives now; while you choose the habitat for a bird, what the bird costs there and what it unlocks |
 | 4 | Birdfeeder: the dice; while you take food, these are the dice to choose |
 | 5 | Bird tray: the face-up cards and the deck |
 | 6 | Your supply: food and the number of cards in your hand |
