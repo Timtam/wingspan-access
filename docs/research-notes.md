@@ -329,6 +329,46 @@ Escape leaves. Enter, Space and Tab stay with the game. The key table is at the 
 - `PowerProgressAnnouncer`: food cached so far (`foodToCache` of `amountToCache`) and the bonus card
   drawn (`BaseDrawBonusCardFromDeck_Decision.bonusCardDraw` / `bonusCard`). Not seen in a game yet.
 
+### Tutorial (2026-11-09)
+
+- `Tutorial.TutorialDriver._currentTask` is the running `Tutorial.Task`; `Hints` and `_hintIndex`
+  tell whether all its hints were shown. Hint bubbles are `Tutorial.HintAnnouncer` screens (Small,
+  SmallLeft, ... chosen by `HintAnnouncerChooser`); `BaseHint.GetText()` has the full text while the
+  bubble's `SpeechBubble.HintText` types it letter by letter. A new bubble first plays its show
+  animation and only then starts revealing, so `RevealNow()` is called whenever `IsRevealing`.
+- `Game.TutorialAnnouncer` reads each hint once (with the bird or bonus card the bubble shows) and,
+  after the last hint of a task that waits for the player, the keys for it. Task types handled:
+  GoToHabitat, ChooseAction, ChooseFood (and the two-faced die, several dice), ChooseBirdCard(s)
+  (tray, hand, board via `ClickableBirds`), ChooseBirdInHabitat, ClickDiscardButton (X),
+  RerollBirdfeeder, CacheOrTakeSeed, ClickPlayerPortrait, Confirm, popups, goals, overview, back.
+- Tutorial bubbles lie over the decision they explain, so the decision announcers get the decision
+  under a bubble (`Screens.Find<Decision>()`), selections under a bubble are read once it closes,
+  and zones work while a bubble is shown.
+- Clicking a player's portrait: the gamepad's PreviewPlayerRight button shows the next player's board
+  (`PlayerPreview_Screen`) and satisfies `ClickPlayerPortraitTask`; zone 9 presses it while the task
+  runs. The top-bar portraits are no `PlayerButton`/`PlayerPortraitUI` the mod could click.
+- The forest trade (discard a card for a die) is the gamepad's Context button (X key); the birdfeeder
+  reroll is `Buttons/ReloadBirdfeederButton`, now an item of zone 4.
+- Starting a game or chapter passes through the play menu and player setup; `GameStartPatch`
+  (prefix on `GameLoader.InvokeStartGame`) silences them until the board or a bubble shows.
+  `GameLoader.IsStartingGame` is not usable for this (true while the tutorial menu loads).
+- Not yet handled: tooltips (`ClickTooltipsTask`, the virtual controller's stick buttons are not
+  bound), hiding the interface, `DiscardEggToDrawCardTask`, `FoodFromSupplyTask`,
+  `ChooseBonusCardTask`, `HideOverviewNonPlayerTask`; chapters 10 to 14 are untested past the
+  start of chapter 10.
+- With the computer-use test harness the first key of a batch is sometimes lost (the window is
+  re-activated); a Shift tap first avoids it. Not seen with a real keyboard so far.
+
+### Start screen and news
+
+- The game is in mouse mode until the first key press, so the focus guard did not move the
+  selection into the news window that opens at start; arrows then moved through the main menu
+  behind it. Menus and popups now get their selection in either mode (decisions still only in
+  gamepad mode).
+- `NewsCenter_Screen`: entries are `NewsDataButton` (`_titleText`, `_dateText`,
+  `_unreadNewsIndicator`, `_pinnedNewsIndicator`); Enter shows the news in `_newsDisplayPanel`
+  (`_headerText`, `_contentText`), which `NewsDescriber` reads when it changes.
+
 ### Known gaps
 
 - Most bird powers with their own decisions are still untested; seen so far: copy a white power

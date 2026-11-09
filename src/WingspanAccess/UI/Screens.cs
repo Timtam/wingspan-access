@@ -16,6 +16,21 @@ internal static class Screens
         return stack == null || stack.Count == 0 ? null : stack.Peek();
     }
 
+    /// <summary>The topmost screen of the given type on the stack, e.g. the decision under a hint bubble.</summary>
+    public static T Find<T>() where T : Il2CppInterop.Runtime.InteropTypes.Il2CppObjectBase
+    {
+        GamepadController controller = GamepadController.I;
+        AlmostStack<GamepadScreen> stack = controller == null ? null : controller.screenStack;
+        for (int i = (stack?.items?.Count ?? 0) - 1; i >= 0; i--)
+        {
+            T screen = stack.items[i]?.TryCast<T>();
+            if (screen != null)
+                return screen;
+        }
+
+        return null;
+    }
+
     /// <summary>Type names of all screens on the stack, in storage order.</summary>
     public static string DescribeStack()
     {

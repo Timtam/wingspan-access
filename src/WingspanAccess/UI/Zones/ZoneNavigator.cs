@@ -56,6 +56,10 @@ internal static class ZoneNavigator
         if (_zone != null && screenId != _screenId)
             Leave(announce: false);
 
+        // Another player's board stays chosen until "You" is chosen in zone 9 or your next turn starts.
+        if (BoardOwner != null && (GameStateCache.State == null || (top != null && top.TryCast<NewTurnAnnouncement_Popup>() != null)))
+            BoardOwner = null;
+
         bool modifier = Held(KeyCode.LeftControl) || Held(KeyCode.RightControl) || Held(KeyCode.LeftAlt) || Held(KeyCode.RightAlt);
         if (!modifier)
         {
@@ -115,7 +119,6 @@ internal static class ZoneNavigator
     {
         _zone?.OnLeave();
         _zone = null;
-        BoardOwner = null;
         if (!announce)
             return;
         GamepadScreen top = Screens.Top();
@@ -210,7 +213,10 @@ internal static class ZoneNavigator
         top != null && GameStateCache.State != null && GameStateCache.LocalPlayer != null && IsGameScreen(top) &&
         !MenuScreens.Contains(top.GetIl2CppType().Name);
 
-    private static bool IsGameScreen(GamepadScreen top) => UiText.PathOf(top.gameObject).StartsWith("GAME/Game_Canvas");
+    /// <summary>The board's screens, the tutorial's hint bubbles over it and the view of another player's board.</summary>
+    private static bool IsGameScreen(GamepadScreen top) =>
+        UiText.PathOf(top.gameObject).StartsWith("GAME/Game_Canvas") || top.TryCast<Tutorial.HintAnnouncerBase>() != null ||
+        top.TryCast<PlayerPreview_Screen>() != null;
 
     private static bool Held(KeyCode key) => UnityEngine.Input.GetKey(key);
 }

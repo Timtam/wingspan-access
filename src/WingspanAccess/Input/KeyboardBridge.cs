@@ -32,11 +32,12 @@ internal static class KeyboardBridge
         new Binding { Key = KeyCode.KeypadEnter, Button = () => VirtualGamepad.Buttons.Submit },     // A
         new Binding { Key = KeyCode.Escape, Button = () => VirtualGamepad.Buttons.Back },            // B
         new Binding { Key = KeyCode.Space, Button = () => VirtualGamepad.Buttons.Accept },           // Y
-        new Binding { Key = KeyCode.Menu, Button = () => VirtualGamepad.Buttons.Context },           // X
-        new Binding { Key = KeyCode.F10, Shift = true, Button = () => VirtualGamepad.Buttons.Context }, // X
+        new Binding { Key = KeyCode.X, Button = () => VirtualGamepad.Buttons.Context },              // X: trade, reroll ...
         new Binding { Key = KeyCode.F10, Button = () => VirtualGamepad.Buttons.Pause },              // Start/Plus
         new Binding { Key = KeyCode.Tab, Button = () => VirtualGamepad.Buttons.NextCard },
         new Binding { Key = KeyCode.Tab, Shift = true, Button = () => VirtualGamepad.Buttons.PreviousCard },
+        new Binding { Key = KeyCode.G, Button = () => VirtualGamepad.Buttons.ToggleGoals },              // Minus: goal board
+        new Binding { Key = KeyCode.O, Button = () => VirtualGamepad.Buttons.ToggleHabitatsOverview },   // overview
     };
 
     private static int _upFrames, _downFrames, _leftFrames, _rightFrames;

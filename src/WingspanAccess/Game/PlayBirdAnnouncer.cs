@@ -98,7 +98,12 @@ internal static class PlayBirdAnnouncer
         FoodAboutToPay shown = manual ? change.foodAboutToPay
             : choose != null && choose.gameObject.activeInHierarchy ? choose.FoodAboutToPay : null;
         if (shown == null)
-            return null;
+        {
+            var pictures = manual ? null : PictureFood(cost);
+            return pictures == null || pictures.Count == 0
+                ? null
+                : Loc.Get("playbird.payment", string.Join(", ", pictures.ConvertAll(pair => $"{pair.Value} {pair.Key}")));
+        }
 
         var counts = new List<KeyValuePair<string, int>>();
         var buttons = shown.FoodButtons;
@@ -115,8 +120,12 @@ internal static class PlayBirdAnnouncer
                 counts[index] = new KeyValuePair<string, int>(name, counts[index].Value + 1);
         }
 
+        // The proposal panel can show the payment as plain pictures (e.g. when only one payment is
+        // possible); then the pictures next to "Pay" are read.
+        if (counts.Count == 0 && !manual)
+            counts = PictureFood(cost);
         if (counts.Count == 0)
-            return Loc.Get(manual ? "playbird.choose_food" : "playbird.choose_payment");
+            return manual ? Loc.Get("playbird.choose_food") : null;
         string food = string.Join(", ", counts.ConvertAll(pair => $"{pair.Value} {pair.Key}"));
         string text = Loc.Get("playbird.payment", food);
         if (!manual)
@@ -126,6 +135,62 @@ internal static class PlayBirdAnnouncer
             parts.Add(UiText.Clean(change.TooMuchFoodWarning.text));
         parts.Add(Loc.Get(NextButton.IsAvailable() ? "dice.confirm" : "playbird.not_enough"));
         return UiText.JoinSentences(parts);
+    }
+
+    private static readonly (string Part, FoodType Type)[] FoodSprites =
+    {
+        ("invertebrate", FoodType.Invertebrate), ("seed", FoodType.Seed), ("fruit", FoodType.Fruit),
+        ("fish", FoodType.Fish), ("rodent", FoodType.Rodent), ("nectar", FoodType.Nectar),
+    };
+
+    private static string _loggedPictures;
+
+    /// <summary>Food shown as pictures in the cost panel's payment row (the food panel, without its buttons).</summary>
+    private static List<KeyValuePair<string, int>> PictureFood(View.Decisions.PlayBird.States.CostPaymentStateController cost)
+    {
+        var counts = new List<KeyValuePair<string, int>>();
+        Transform panel = null;
+        foreach (Transform child in cost.GetComponentsInChildren<Transform>(false))
+        {
+            if (child.name == "FoodPanel")
+            {
+                panel = child;
+                break;
+            }
+        }
+
+        if (panel == null)
+            return counts;
+        var names = new List<string>();
+        foreach (UnityEngine.UI.Image image in panel.GetComponentsInChildren<UnityEngine.UI.Image>(false))
+        {
+            if (image.sprite == null || image.transform.parent == null || UiText.PathOf(image.gameObject).Contains("/Buttons/"))
+                continue;
+            string sprite = image.sprite.name;
+            names.Add(sprite);
+            string lower = sprite.ToLowerInvariant();
+            foreach (var (part, type) in FoodSprites)
+            {
+                if (!lower.Contains(part))
+                    continue;
+                string name = GameReader.FoodTypeName(type);
+                int index = counts.FindIndex(pair => pair.Key == name);
+                if (index < 0)
+                    counts.Add(new KeyValuePair<string, int>(name, 1));
+                else
+                    counts[index] = new KeyValuePair<string, int>(name, counts[index].Value + 1);
+                break;
+            }
+        }
+
+        string logged = string.Join(", ", names);
+        if (logged != _loggedPictures)
+        {
+            _loggedPictures = logged;
+            Plugin.Logger.LogInfo($"[PlayBird] payment pictures: {logged}");
+        }
+
+        return counts;
     }
 
     /// <summary>Eggs chosen to pay for the bird's place: "1 von 1 Ei gewählt".</summary>

@@ -14,6 +14,15 @@ internal sealed class HabitatZone : Zone
 
     public HabitatZone(ActionType habitat) => _habitat = habitat;
 
+    /// <summary>Another player's board is only read: Enter does not reach the game (it would take your action).</summary>
+    public override bool HandlesEnter => ZoneNavigator.BoardOwner != null;
+
+    public override void Activate(ZoneItem item)
+    {
+        if (ZoneNavigator.BoardOwner != null)
+            Speech.ScreenReader.SayTransient(Loc.Get("zone.board_of", GameReader.PlayerName(ZoneNavigator.BoardOwner)));
+    }
+
     private static Rules.Player Owner => ZoneNavigator.BoardOwner ?? GameStateCache.LocalPlayer;
 
     public override string Title()
@@ -102,6 +111,18 @@ internal sealed class BirdfeederZone : Zone
                 });
             }
 
+            // The reroll buttons next to the dice belong to the zone while they can be used (End reaches them).
+            foreach (UnityEngine.UI.Selectable button in decision.GetComponentsInChildren<UnityEngine.UI.Selectable>(false))
+            {
+                Transform parent = button == null ? null : button.transform.parent;
+                if (button == null || !button.interactable ||
+                    !(RerollButtons.Contains(button.gameObject.name) || (parent != null && RerollButtons.Contains(parent.name))))
+                    continue;
+                UnityEngine.UI.Selectable current = button;
+                string label = UiText.Describe(button.gameObject);
+                items.Add(new ZoneItem { Summary = label, Details = () => new List<string> { label }, Control = () => current });
+            }
+
             return items;
         }
 
@@ -119,6 +140,8 @@ internal sealed class BirdfeederZone : Zone
         AddDice(items, feeder.NectarSeed, FoodType.NectarSeed);
         return items;
     }
+
+    private static readonly HashSet<string> RerollButtons = new() { "ReloadBirdfeederButton", "RerollAllDicesOutsideBirdfeederButton" };
 
     private static void AddDice(List<ZoneItem> items, int count, FoodType type)
     {
@@ -272,6 +295,11 @@ internal sealed class HandZone : Zone
 
     public override string Title() => Loc.Count("zone.hand", Cards().Count);
 
+    /// <summary>Decisions that take a card from the hand: playing a bird, discarding or tucking cards.</summary>
+    public static bool IsHandTask(GamepadScreen top) =>
+        top != null && (top.TryCast<ChooseAction_Decision>() != null || top.TryCast<DiscardBirds_Decision>() != null ||
+            top.TryCast<TuckCardsFromHand_Decision>() != null || top.GetIl2CppType().Name.Contains("Hand"));
+
     public override void OnEnter()
     {
         // Open the hand only where cards are played or chosen from it; elsewhere it is read-only.
@@ -310,7 +338,7 @@ internal sealed class HandZone : Zone
     public override int SelectedIndex(List<ZoneItem> items)
     {
         GameObject selected = EventSystem.current?.currentSelectedGameObject;
-        if (selected == null || Hand == null || !Hand.IsInCardPreview)
+        if (selected == null || Hand == null)
             return -1;
         for (int i = 0; i < items.Count; i++)
         {
@@ -325,7 +353,7 @@ internal sealed class HandZone : Zone
     public override bool Select(ZoneItem item)
     {
         PlayerHandUI hand = Hand;
-        if (hand == null || !hand.IsInCardPreview)
+        if (hand == null || !(hand.IsInCardPreview || IsHandTask(Screens.Top())))
             return false;
 
         List<ZoneItem> items = Items();
@@ -334,6 +362,13 @@ internal sealed class HandZone : Zone
         for (int guard = 0; guard < 20; guard++)
         {
             int current = SelectedIndex(items);
+            if (current < 0 && guard == 0)
+            {
+                // Discarding from the hand starts without a selected card; the first step selects one.
+                hand.NextCard();
+                continue;
+            }
+
             if (current < 0 || current == target)
                 return current == target;
             if (current < target)
@@ -425,6 +460,14 @@ internal sealed class PlayersZone : Zone
         Speech.ScreenReader.SayTransient(ZoneNavigator.BoardOwner == null
             ? Loc.Get("zone.board_own")
             : Loc.Get("zone.board_of", GameReader.PlayerName(player)));
+
+        // The tutorial asks to click a player's portrait (to look at their board, or back at yours):
+        // the gamepad does that with the player preview button, which shows the next player's board.
+        if (TutorialAnnouncer.WantedPortrait() != null)
+        {
+            Plugin.Logger.LogInfo($"[Zone] previewing the board of {player.P_ID} for the tutorial");
+            KeyboardBridge.Press(VirtualGamepad.Buttons.PreviewPlayerRight);
+        }
     }
 }
 

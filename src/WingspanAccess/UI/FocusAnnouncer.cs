@@ -19,6 +19,11 @@ internal static class FocusAnnouncer
     private static int _lastGroupId;
     private static bool? _lastGamepadMode;
     private static int _guardFrame = -1;
+    private static int _screenChangedFrame = -1000;
+    private const float StartTimeoutSeconds = 20f;
+    private static float _startedAt = -1f;
+    private static int _focusSpokenFrame = -1000;
+    private static bool _selectionHiddenByHint;
 
     private static UnityEngine.UI.Toggle _toggle;
     private static UnityEngine.UI.Slider _slider;
@@ -45,15 +50,39 @@ internal static class FocusAnnouncer
             Plugin.Logger.LogInfo($"[Focus] gamepad mode {gamepadMode}");
         _lastGamepadMode = gamepadMode;
 
+        // While a game or tutorial chapter starts, the game passes through menus (the play menu, the
+        // player setup) that are not meant for the player; they are followed silently until the
+        // board or the first tutorial bubble shows.
+        bool starting = _startedAt >= 0f;
+        if (starting && (InGame(top) || Time.realtimeSinceStartup - _startedAt > StartTimeoutSeconds))
+        {
+            _startedAt = -1f;
+            starting = false;
+            Plugin.Logger.LogInfo("[Focus] game started");
+        }
+
         int screenId = top == null ? 0 : top.GetInstanceID();
         bool screenChanged = screenId != _lastScreenId;
         if (screenChanged)
         {
             _lastScreenId = screenId;
+            _screenChangedFrame = Time.frameCount;
+            if (_selectionHiddenByHint)
+            {
+                _selectionHiddenByHint = false;
+                _lastSelectionId = -1; // read the selection the bubble covered
+            }
             _popupId = 0; // the game reuses popups (e.g. the turn popup); compare texts per appearance
             Plugin.Logger.LogInfo($"[Screen] top={top?.GetIl2CppType().Name ?? "<none>"} stack=[{Screens.DescribeStack()}]");
-            if (top != null)
+            if (top != null && !starting)
+            {
                 ScreenReader.Say(DescribeScreen(top), history: IsGameEvent(top));
+                // A selection inside the new screen, made just before it registered, was cut off by its
+                // name: read it again.
+                GameObject current = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
+                if (Time.frameCount - _focusSpokenFrame < 30 && current != null && current.transform.IsChildOf(top.transform))
+                    _lastSelectionId = -1;
+            }
         }
 
         if (screenChanged || modeChanged)
@@ -61,26 +90,50 @@ internal static class FocusAnnouncer
         if (_guardFrame >= 0 && Time.frameCount >= _guardFrame)
         {
             _guardFrame = -1;
-            if (gamepadMode && top != null)
+            // Until the first key press the game counts as mouse-controlled. Menus opening then (the
+            // news at start) would leave the selection behind them, in the main menu; so menus and
+            // popups get their selection in either mode, decisions only once the keyboard is used.
+            if (top != null && !starting && (gamepadMode || top.TryCast<Decision>() == null))
                 KeepSelectionInMenu(top);
         }
 
-        TrackSelection(top, interrupt: !screenChanged);
+        // The selection the game or the guard sets right after a screen change follows the screen's
+        // announcement instead of cutting it off.
+        bool settling = Time.frameCount <= _screenChangedFrame + SelectionGraceFrames + 1;
+        TrackSelection(top, interrupt: !settling, silent: starting);
         WatchValue();
         WatchPopupTexts(top);
         DecisionAnnouncer.Tick(top);
         GoalMatDescriber.Tick(top);
+        NewsDescriber.Tick(top);
         Game.GameStateCache.Update(top);
         Game.ActionAnnouncer.Tick(top);
         Game.OpponentWatcher.Tick();
-        Game.PlayBirdAnnouncer.Tick(top);
-        Game.ChosenDiceAnnouncer.Tick(top);
-        Game.EggDecisionAnnouncer.Tick(top);
-        Game.DrawAnnouncer.Tick(top);
-        Game.SpecialPowersAnnouncer.Tick(top);
-        Game.DiscardAnnouncer.Tick(top);
-        Game.PowerProgressAnnouncer.Tick(top);
+
+        // Tutorial hint bubbles lie over the decision they explain (the payment proposal, the picked
+        // food); the decision's own announcements still apply.
+        GamepadScreen decision = top != null && top.TryCast<Tutorial.HintAnnouncerBase>() != null
+            ? Screens.Find<Decision>() ?? top
+            : top;
+        Game.PlayBirdAnnouncer.Tick(decision);
+        Game.ChosenDiceAnnouncer.Tick(decision);
+        Game.EggDecisionAnnouncer.Tick(decision);
+        Game.DrawAnnouncer.Tick(decision);
+        Game.SpecialPowersAnnouncer.Tick(decision);
+        Game.DiscardAnnouncer.Tick(decision);
+        Game.PowerProgressAnnouncer.Tick(decision);
+        Game.TutorialAnnouncer.Tick(top);
     }
+
+    /// <summary>Called when the game starts a game or tutorial chapter (see GameStartPatch).</summary>
+    public static void GameStarting()
+    {
+        _startedAt = Time.realtimeSinceStartup;
+        Plugin.Logger.LogInfo("[Focus] starting a game");
+    }
+
+    private static bool InGame(GamepadScreen top) =>
+        top != null && (top.TryCast<Tutorial.HintAnnouncerBase>() != null || UiText.PathOf(top.gameObject).StartsWith("GAME/Game_Canvas"));
 
     private static readonly HashSet<string> NotInHistory = new() { "WaitForOtherPlayer_Decision", "PauseMenu_Screen", "OptionsMenuPause" };
 
@@ -111,9 +164,17 @@ internal static class FocusAnnouncer
             parts.AddRange(texts);
         }
 
-        string hint = "hint." + typeName;
-        if (Localization.Loc.Has(hint))
-            parts.Add(Localization.Loc.Get(hint));
+        // Key hints may belong to a base type, e.g. all decisions that discard cards from the hand.
+        for (Il2CppSystem.Type type = screen.GetIl2CppType(); type != null; type = type.BaseType)
+        {
+            string hint = "hint." + type.Name;
+            if (Localization.Loc.Has(hint))
+            {
+                parts.Add(Localization.Loc.Get(hint));
+                break;
+            }
+        }
+
         return UiText.JoinSentences(parts);
     }
 
@@ -124,6 +185,9 @@ internal static class FocusAnnouncer
         ["NewTurnAnnouncement_Popup"] = new[] { "RoundText", "TurnText", "TapText" },
         // Another player's power gives you an extra action: which bird and what it does.
         ["IncomingInterjectionTurnAnnouncement_Popup"] = new[] { "CentralBirdPowerText", "TapText" },
+        // Tutorial bubbles: their text appears letter by letter; the tutorial announcer reads it in full.
+        ["HintAnnouncer"] = new string[0],
+        ["HintAnnouncerChooser"] = new string[0],
     };
 
     private static readonly HashSet<string> SilentFocusScreens = new() { "NewTurnAnnouncement_Popup", "IncomingInterjectionTurnAnnouncement_Popup" };
@@ -210,7 +274,7 @@ internal static class FocusAnnouncer
             ScreenReader.SayTransient(UiText.JoinSentences(changed));
     }
 
-    private static void TrackSelection(GamepadScreen top, bool interrupt)
+    private static void TrackSelection(GamepadScreen top, bool interrupt, bool silent)
     {
         EventSystem eventSystem = EventSystem.current;
         GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
@@ -258,6 +322,21 @@ internal static class FocusAnnouncer
             return;
         }
 
+        if (silent)
+        {
+            Plugin.Logger.LogInfo($"[Focus] (starting game) {UiText.PathOf(selected)}");
+            return;
+        }
+
+        // Under a tutorial bubble the game already selects the decision's first element. The bubble
+        // is read now; the selection follows once the bubble closes.
+        if (top != null && top.TryCast<Tutorial.HintAnnouncerBase>() != null && !selected.transform.IsChildOf(top.transform))
+        {
+            Plugin.Logger.LogInfo($"[Focus] (under hint) {UiText.PathOf(selected)}");
+            _selectionHiddenByHint = true;
+            return;
+        }
+
         string description = UiText.Describe(selected);
         Transform parent = selected.transform.parent;
         int groupId = parent == null ? 0 : parent.GetInstanceID();
@@ -271,6 +350,7 @@ internal static class FocusAnnouncer
 
         Plugin.Logger.LogInfo($"[Focus] {UiText.PathOf(selected)} => {description}");
         ScreenReader.SayTransient(description, interrupt);
+        _focusSpokenFrame = Time.frameCount;
     }
 
     private static void WatchValue()

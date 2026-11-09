@@ -21,7 +21,8 @@ internal static class UiText
     {
         try
         {
-            string special = SetupDescriber.Describe(target) ?? CardDescriber.Describe(target) ?? SaveDescriber.Describe(target);
+            string special = SetupDescriber.Describe(target) ?? CardDescriber.Describe(target) ?? SaveDescriber.Describe(target) ??
+                NewsDescriber.Describe(target);
             if (special != null)
             {
                 string cardPosition = Position(target);
@@ -62,10 +63,26 @@ internal static class UiText
             label = parts.Count > 0 ? string.Join(", ", parts) : HumanizeTypeName(target.name);
         }
 
+        string chapterState = TutorialChapterState(target);
+        if (chapterState != null)
+            label = $"{label}, {chapterState}";
+
         string role = RoleOf(target, slider);
         string description = role == null ? label : $"{label}, {role}";
         string position = Position(target);
         return position == null ? description : $"{description}, {position}";
+    }
+
+    /// <summary>"Completed" for tutorial chapters already played (the list shows them in colour with a feather).</summary>
+    private static string TutorialChapterState(GameObject target)
+    {
+        var chapter = target.GetComponentInChildren<View.UI.MainMenu.TutorialMenu.TutorialMenuButtonDynamic>(true);
+        if (chapter == null)
+            return null;
+        UnityEngine.UI.Image icon = chapter._chapterCompletedIcon;
+        Sprite finished = chapter._chapterIconFinished;
+        bool done = icon != null && finished != null && icon.sprite != null && icon.sprite.Pointer == finished.Pointer;
+        return done ? Loc.Get("tutorial.finished") : null;
     }
 
     /// <summary>
@@ -223,18 +240,75 @@ internal static class UiText
     {
         if (string.IsNullOrEmpty(text))
             return string.Empty;
-        text = SpriteTag.Replace(text, match => " " + SpriteName(match.Groups[1].Value) + " ");
+        // Repeated icons count ("[egg][egg]" reads "2 eggs"); icon names are marked so that an icon
+        // repeating the words right before it ("play a bird [play a bird]") can be dropped.
+        text = RepeatedSprite.Replace(text, match => $" {SpriteTag.Matches(match.Value).Count} {SpritePlural(match.Groups[1].Value)} ");
+        text = SpriteTag.Replace(text, match => $" {IconStart}{SpriteName(match.Groups[1].Value)}{IconEnd} ");
+        // Bold, colour and similar tags sit inside words or quotes („<b>bezahlen</b>“) and take no room.
+        text = InlineTag.Replace(text, string.Empty);
         text = AnyTag.Replace(text, " ");
+        text = DropRepeatedIconNames(text);
         text = Whitespace.Replace(text, " ").Trim();
         // "[nest icon] Nest" in game texts would otherwise read "Höhlennest Nest".
         text = DoubledNest.Replace(text, "$1");
         // German game texts use the plural for one point, too ("1 Punkte").
         if (Loc.Language != null && Loc.Language.StartsWith("de"))
             text = OnePointGerman.Replace(text, "1 Punkt");
+        text = SpaceAfterBracket.Replace(text, "(");
+        text = SpaceBeforeHyphen.Replace(text, "$1-$2");
         return SpaceBeforePunctuation.Replace(text, "$1");
     }
 
+    // Icons removed from "(<icon> Züge)" or "Rundenziel<icon>-Felder" leave stray spaces.
+    private static readonly Regex SpaceAfterBracket = new(@"\(\s+");
+    private static readonly Regex SpaceBeforeHyphen = new(@"(\w) -(\w)");
+
     private static readonly Regex OnePointGerman = new(@"(?<![\d,.])1 Punkte\b");
+    private static readonly Regex RepeatedSprite = new(
+        @"<sprite[^>]*?name=""?([^"">\s]+)""?[^>]*>(?:\s*<sprite[^>]*?name=""?\1""?[^>]*>)+", RegexOptions.IgnoreCase);
+    private const char IconStart = '\u0001';
+    private const char IconEnd = '\u0002';
+
+    /// <summary>Removes the icon markers; an icon whose name repeats the words before it is left out.</summary>
+    private static string DropRepeatedIconNames(string text)
+    {
+        if (text.IndexOf(IconStart) < 0)
+            return text;
+
+        var result = new StringBuilder();
+        int position = 0;
+        while (position < text.Length)
+        {
+            int start = text.IndexOf(IconStart, position);
+            int end = start < 0 ? -1 : text.IndexOf(IconEnd, start);
+            if (end < 0)
+            {
+                result.Append(text, position, text.Length - position);
+                break;
+            }
+
+            result.Append(text, position, start - position);
+            string name = text.Substring(start + 1, end - start - 1);
+            string before = result.ToString().TrimEnd();
+            bool repeats = name.Length > 0 && before.EndsWith(name, StringComparison.OrdinalIgnoreCase) &&
+                (before.Length == name.Length || !char.IsLetter(before[before.Length - name.Length - 1]));
+            if (!repeats)
+                result.Append(name);
+            position = end + 1;
+        }
+
+        return result.ToString().Replace(IconStart.ToString(), string.Empty).Replace(IconEnd.ToString(), string.Empty);
+    }
+
+    /// <summary>Plural name of an icon for counted repeats ("icon.egg.plural"), else its name.</summary>
+    private static string SpritePlural(string sprite)
+    {
+        string plural = "icon." + sprite + ".plural";
+        return Loc.Has(plural) ? Loc.Get(plural) : SpriteName(sprite);
+    }
+    private static readonly Regex InlineTag = new(
+        @"</?(b|i|u|s|color|size|font|font-weight|mark|style|link|alpha|cspace|mspace|voffset|nobr|lowercase|uppercase|smallcaps|sup|sub|noparse|gradient|material)(=[^>]*)?>",
+        RegexOptions.IgnoreCase);
 
     private static readonly Regex DoubledNest = new(@"(nest) nest\b", RegexOptions.IgnoreCase);
     private static readonly Regex FoodButton = new(@"^ButtonInPanel_(\w+)$");
@@ -264,7 +338,13 @@ internal static class UiText
         }
 
         string icon = "icon." + sprite;
-        return Loc.Has(icon) ? Loc.Get(icon) : $"[{sprite}]";
+        if (Loc.Has(icon))
+            return Loc.Get(icon);
+
+        // Families of icons (bird packs, expansions) share a name: "birdpack_bb" reads "bird pack".
+        int underscore = sprite.IndexOf('_');
+        string family = underscore > 0 ? "icon." + sprite.Substring(0, underscore) : null;
+        return family != null && Loc.Has(family) ? Loc.Get(family) : $"[{sprite}]";
     }
 
     /// <summary>Spoken name of a screen: mod translation, else a title text on the screen, else its type name.</summary>

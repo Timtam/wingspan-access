@@ -5,8 +5,9 @@ It speaks the game's menus through your screen reader and lets you control the g
 
 > **Status: early development.** The main menus and the custom game setup are accessible. A basic game
 > against AI players can be played: the starting selection, the four actions (play a bird, gain food,
-> lay eggs, draw cards), and announcements of what the other players did. Many bird powers, expansion
-> features and the online modes have not been tested yet.
+> lay eggs, draw cards), and announcements of what the other players did. The first chapters of the
+> tutorial work with the keyboard. Many bird powers, expansion features and the online modes have not
+> been tested yet.
 
 The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 
@@ -33,6 +34,12 @@ The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 - **Round and game end.** Round end powers, the goal board with everyone's standings and the final
   ranking with points per category are read out.
 - **Message history.** The last game messages can be read again at any time.
+- **Tutorial.** Each hint of the tutorial is read in full, with the card it shows. Where a hint asks
+  you to click something, the mod then says which keys do it, for example "Press 2 for grassland" or
+  "Press 7 for your hand, choose Blue Jay with Left and Right and press Enter". The chapter list says
+  which chapters you have completed.
+- **News.** The news window that opens at start is announced with its first entry; Enter reads a
+  news item in full.
 
 ## Requirements
 
@@ -70,7 +77,9 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | Space | Continue or confirm (gamepad Y): start the game, confirm a selection or payment |
 | Escape | Back (gamepad B). Inside a zone: back to the game |
 | Backspace | Take the last picked food out again (paying for a bird, caching food on a bird) |
-| Shift+F10 or Applications key | Context action (gamepad X) |
+| X | Context action (gamepad X), for example trade a card for food or reroll the birdfeeder |
+| G | Goal board |
+| O | Overview of the habitats |
 | Tab / Shift+Tab | Next / previous card |
 | Page Up / Page Down | Read the previous / next message again (see "Message history") |
 | Control+Page Up / Control+Page Down | Read the first / latest message |
@@ -95,9 +104,9 @@ work for the game's own choices again.
 | 4 | Birdfeeder: the dice; while you take food, these are the dice to choose |
 | 5 | Bird tray: the face-up cards and the deck |
 | 6 | Your supply: food and the number of cards in your hand |
-| 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card |
+| 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card. When a task asks for a card from your hand (to discard or tuck it), the cursor selects it and Enter marks it |
 | 8 | Status: round, your actions left, whose turn it is |
-| 9 | Players with their birds, food and cards. Enter on a player makes 1 to 3 read that player's board until you leave the zone |
+| 9 | Players with their birds, food and cards, you first. Enter on a player makes 1 to 3 read that player's board; Enter on yourself ("You") switches back, and so does the start of your next turn |
 | 0 | Round goals with the standings; Up and Down also read the game's explanation of the goal |
 
 When the current task lets you choose the item under the cursor (a bird to lay an egg on, a card to
@@ -125,6 +134,8 @@ Announcements of the selected element, zones and information you asked for (F-ke
 4. In the task that follows, Enter marks things (cards, dice, birds for eggs) and Space confirms.
    A card drawn from the deck is shown first: one Space puts it into your hand, the next confirms.
    The mod says how much food you may take, how many cards are left to draw and how many eggs to lay.
+   Where the slot offers a trade (for example a card for one more die in the forest), X starts it;
+   then choose the card with 7 and Enter, and confirm with Space.
 5. When the other players have moved, the mod tells you what they did. Bird powers that give you an
    extra action between turns are announced as "out-of-turn action".
 6. At the end of a round the mod names the birds whose "round end" powers you can activate, then
