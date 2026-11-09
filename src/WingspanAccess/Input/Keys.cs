@@ -15,7 +15,7 @@ internal static class Keys
     {
         [KeyCode.UpArrow] = 0x26, [KeyCode.DownArrow] = 0x28, [KeyCode.LeftArrow] = 0x25, [KeyCode.RightArrow] = 0x27,
         [KeyCode.Return] = 0x0D, [KeyCode.KeypadEnter] = 0x0D, [KeyCode.Backspace] = 0x08,
-        [KeyCode.F1] = 0x70, [KeyCode.F2] = 0x71, [KeyCode.F3] = 0x72, [KeyCode.F10] = 0x79, [KeyCode.F11] = 0x7A, [KeyCode.F12] = 0x7B,
+        [KeyCode.F1] = 0x70, [KeyCode.F2] = 0x71, [KeyCode.F3] = 0x72, [KeyCode.F5] = 0x74, [KeyCode.F10] = 0x79, [KeyCode.F11] = 0x7A, [KeyCode.F12] = 0x7B,
     };
 
     private static readonly Dictionary<KeyCode, bool> WasDown = new();
