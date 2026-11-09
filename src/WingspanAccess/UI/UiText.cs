@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -98,19 +99,57 @@ internal static class UiText
         if (across != null)
             return across;
 
-        int index = 0, count = 0;
+        var items = new List<Transform>();
         for (int i = 0; i < parent.childCount; i++)
         {
             Transform child = parent.GetChild(i);
             UnityEngine.UI.Selectable selectable = child.GetComponent<UnityEngine.UI.Selectable>();
             if (selectable == null || !child.gameObject.activeInHierarchy || !selectable.interactable)
                 continue;
-            count++;
-            if (child == target.transform)
-                index = count;
+            // A full-screen button behind a menu or popup that closes it on a click outside; the
+            // arrow keys never reach it.
+            if (child != target.transform && child.name.EndsWith("ClickAway"))
+                continue;
+            items.Add(child);
         }
 
-        return count >= 2 && index > 0 ? Loc.Get("position", index, count) : null;
+        // Options side by side count from left to right, the way the arrow keys move, also where the
+        // game lists them the other way round (its yes/no questions show "Nein" left of "Ja").
+        if (items.Count >= 2 && SideBySide(items))
+            items = items.OrderBy(item => Center(item).x).ToList();
+
+        // Unity's == compares the game objects; IndexOf would compare the interop wrappers.
+        int index = 0;
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i] == target.transform)
+                index = i + 1;
+        }
+
+        return items.Count >= 2 && index > 0 ? Loc.Get("position", index, items.Count) : null;
+    }
+
+    /// <summary>Whether the elements lie in one row: their centers differ by less than half an element's height.</summary>
+    private static bool SideBySide(List<Transform> items)
+    {
+        RectTransform first = items[0].GetComponent<RectTransform>();
+        if (first == null)
+            return false;
+        float y = Center(items[0]).y;
+        float tolerance = Mathf.Abs(first.rect.height * first.lossyScale.y) / 2f;
+        for (int i = 1; i < items.Count; i++)
+        {
+            if (items[i].GetComponent<RectTransform>() == null || Mathf.Abs(Center(items[i]).y - y) > tolerance)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static Vector3 Center(Transform transform)
+    {
+        RectTransform rect = transform.GetComponent<RectTransform>();
+        return rect == null ? transform.position : rect.TransformPoint(rect.rect.center);
     }
 
     private static readonly Regex InstanceSuffix = new(@"\s*(\(\d+\)|\(Clone\))$");
@@ -177,7 +216,56 @@ internal static class UiText
 
         // Food choice buttons are named after their food, e.g. "Dice1/ButtonInPanel_Fruit".
         Match food = FoodButton.Match(target.name);
-        return food.Success && Loc.Has("name." + food.Groups[1].Value) ? Loc.Get("name." + food.Groups[1].Value) : null;
+        if (food.Success && Loc.Has("name." + food.Groups[1].Value))
+            return Loc.Get("name." + food.Groups[1].Value);
+
+        // Icon-only buttons (the yes and no of a question): the icon they show, else what a click does.
+        return ButtonIcon(target) ?? ButtonAction(target);
+    }
+
+    /// <summary>A known icon on the button ("sprite.&lt;name&gt;" in the language files), e.g. a tick for yes.</summary>
+    private static string ButtonIcon(GameObject target)
+    {
+        foreach (UnityEngine.UI.Image image in target.GetComponentsInChildren<UnityEngine.UI.Image>(false))
+        {
+            string sprite = image.sprite == null ? null : image.sprite.name;
+            if (!string.IsNullOrEmpty(sprite) && Loc.Has("sprite." + sprite))
+                return Loc.Get("sprite." + sprite);
+        }
+
+        return null;
+    }
+
+    /// <summary>The method a button calls when clicked ("name.method.Next" = continue), for buttons without a label.</summary>
+    private static string ButtonAction(GameObject target)
+    {
+        UnityEngine.UI.Button button = target.GetComponent<UnityEngine.UI.Button>();
+        var click = button == null ? null : button.onClick;
+        for (int i = 0; click != null && i < click.GetPersistentEventCount(); i++)
+        {
+            string key = "name.method." + click.GetPersistentMethodName(i);
+            if (Loc.Has(key))
+                return Loc.Get(key);
+        }
+
+        return null;
+    }
+
+    /// <summary>Icons and click handlers of a control, for the screen dump (finding names for unlabeled buttons).</summary>
+    public static string ControlInternals(GameObject target)
+    {
+        var parts = new List<string>();
+        foreach (UnityEngine.UI.Image image in target.GetComponentsInChildren<UnityEngine.UI.Image>(false))
+        {
+            if (image.sprite != null)
+                parts.Add($"sprite {image.gameObject.name}:{image.sprite.name}");
+        }
+
+        UnityEngine.UI.Button button = target.GetComponent<UnityEngine.UI.Button>();
+        var click = button == null ? null : button.onClick;
+        for (int i = 0; click != null && i < click.GetPersistentEventCount(); i++)
+            parts.Add($"click {click.GetPersistentMethodName(i)}");
+        return string.Join("; ", parts);
     }
 
     /// <summary>
@@ -275,6 +363,8 @@ internal static class UiText
     {
         if (string.IsNullOrEmpty(text))
             return string.Empty;
+        // Text fields show an invisible zero-width space when empty.
+        text = text.Replace("\u200B", string.Empty);
         // Repeated icons count ("[egg][egg]" reads "2 eggs"); icon names are marked so that an icon
         // repeating the words right before it ("play a bird [play a bird]") can be dropped.
         text = RepeatedSprite.Replace(text, match => $" {SpriteTag.Matches(match.Value).Count} {SpritePlural(match.Groups[1].Value)} ");
@@ -332,28 +422,64 @@ internal static class UiText
             string[] forms = text.Substring(start + 1, end - start - 1).Split(IconPlural);
             string name = forms[0];
             string before = result.ToString().TrimEnd();
+            position = end + 1;
             // "Bonuskarten [bonus card]": the icon repeats the word before it, also in its plural form.
-            bool repeats = false;
-            foreach (string form in forms)
+            if (EndsWithWord(before, forms))
+                continue;
+
+            // "Höhlennest ([cavity nest])": an icon in brackets that repeats the word before them
+            // is left out with its brackets.
+            string inner = before.EndsWith("(") ? before.Substring(0, before.Length - 1).TrimEnd() : null;
+            if (inner != null && EndsWithWord(inner, forms))
             {
-                repeats |= form.Length > 0 && before.EndsWith(form, StringComparison.OrdinalIgnoreCase) &&
-                    (before.Length == form.Length || !char.IsLetter(before[before.Length - form.Length - 1]));
+                result.Length = inner.Length;
+                while (position < text.Length && text[position] == ' ')
+                    position++;
+                if (position < text.Length && text[position] == ')')
+                    position++;
+                continue;
             }
 
-            if (!repeats)
-                result.Append(name);
-            position = end + 1;
+            // "[bowl nest] (Kugelnest)": the game names the icon itself in brackets right after it;
+            // then only the game's name is read, without the brackets.
+            int open = position;
+            while (open < text.Length && text[open] == ' ')
+                open++;
+            int close = open < text.Length && text[open] == '(' ? text.IndexOf(')', open) : -1;
+            string bracketed = close > open ? text.Substring(open + 1, close - open - 1).Trim() : null;
+            if (bracketed != null && bracketed.Length > 0 && bracketed.Length <= 30 && bracketed.Split(' ').Length <= 3 &&
+                bracketed.IndexOf(IconStart) < 0)
+            {
+                result.Append(bracketed);
+                position = close + 1;
+                continue;
+            }
+
+            result.Append(name);
         }
 
         return result.ToString().Replace(IconStart.ToString(), string.Empty).Replace(IconEnd.ToString(), string.Empty)
             .Replace(IconPlural.ToString(), string.Empty);
     }
 
+    /// <summary>Whether the text ends with one of the forms as a whole word.</summary>
+    private static bool EndsWithWord(string text, string[] forms)
+    {
+        foreach (string form in forms)
+        {
+            if (form.Length > 0 && text.EndsWith(form, StringComparison.OrdinalIgnoreCase) &&
+                (text.Length == form.Length || !char.IsLetter(text[text.Length - form.Length - 1])))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Plural name of an icon for counted repeats ("icon.egg.plural"), else its name.</summary>
     private static string SpritePlural(string sprite)
     {
         string plural = "icon." + sprite + ".plural";
-        return Loc.Has(plural) ? Loc.Get(plural) : SpriteName(sprite);
+        return Loc.HasOwn(plural) ? Loc.Get(plural) : SpriteName(sprite);
     }
     private static readonly Regex InlineTag = new(
         @"</?(b|i|u|s|color|size|font|font-weight|mark|style|link|alpha|cspace|mspace|voffset|nobr|lowercase|uppercase|smallcaps|sup|sub|noparse|gradient|material)(=[^>]*)?>",
@@ -438,10 +564,55 @@ internal static class UiText
     /// Label of the group the element belongs to: a text that is a direct sibling of the element
     /// (e.g. "Wissenswertes anzeigen:" above a set of options).
     /// </summary>
-    public static string GroupLabel(GameObject element)
+    public static string GroupLabel(GameObject element, Transform screen = null)
     {
         List<string> siblings = SiblingTexts(element);
-        return siblings.Count > 0 ? siblings[0] : null;
+        if (siblings.Count > 0)
+            return siblings[0];
+
+        // Panels with a header next to their buttons, e.g. the online menu's "Echtzeit, 3 Minuten pro
+        // Zug" and "Asynchron, 72 Stunden pro Zug", which both offer a "Standardspiel". The search
+        // stays inside the screen: the pause menu sits right on the game canvas, whose header holds
+        // the opponents' speech bubbles.
+        Transform panel = element.transform.parent;
+        for (int depth = 0; panel != null && depth < 2; depth++, panel = panel.parent)
+        {
+            string header = HeaderTexts(panel, element.transform);
+            if (header != null)
+                return header;
+            if (panel == screen || IsRootCanvas(panel))
+                break;
+        }
+
+        return null;
+    }
+
+    private static bool IsRootCanvas(Transform transform)
+    {
+        Canvas canvas = transform.GetComponent<Canvas>();
+        return canvas != null && canvas.isRootCanvas;
+    }
+
+    private static string HeaderTexts(Transform panel, Transform exclude)
+    {
+        for (int i = 0; i < panel.childCount; i++)
+        {
+            Transform child = panel.GetChild(i);
+            if (child == exclude || exclude.IsChildOf(child) || !child.gameObject.activeInHierarchy || !child.name.Contains("Header"))
+                continue;
+            var texts = new List<string>();
+            foreach (TMPro.TMP_Text text in child.GetComponentsInChildren<TMPro.TMP_Text>(false))
+            {
+                string clean = IsShown(text) ? Clean(text.text) : string.Empty;
+                if (clean.Length > 0)
+                    texts.Add(clean);
+            }
+
+            if (texts.Count > 0)
+                return string.Join(", ", texts);
+        }
+
+        return null;
     }
 
     /// <summary>Joins texts into sentences without doubling punctuation ("Text." + "More" -> "Text. More").</summary>

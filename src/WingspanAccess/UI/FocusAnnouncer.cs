@@ -17,6 +17,8 @@ internal static class FocusAnnouncer
     private static int _lastScreenId;
     private static int _lastSelectionId = -1;
     private static int _lastGroupId;
+    /// <summary>The last screen announcement as plain words (see <see cref="Words"/>).</summary>
+    private static string _screenWords = string.Empty;
     private static bool? _lastGamepadMode;
     private static int _guardFrame = -1;
     private static int _screenChangedFrame = -1000;
@@ -28,7 +30,12 @@ internal static class FocusAnnouncer
     private static UnityEngine.UI.Toggle _toggle;
     private static UnityEngine.UI.Slider _slider;
     private static TMPro.TMP_Dropdown _dropdown;
+    private static TMPro.TMP_InputField _input;
+    private static string _lastInputText;
     private static string _lastValue;
+
+    /// <summary>Frame at which Enter on an option that is already chosen gets its state repeated (0: none).</summary>
+    private static int _repeatChosenFrame;
 
     /// <summary>Texts of and next to the selection; changes are announced (e.g. "1920 x 1080" after an arrow button).</summary>
     private static GameObject _selected;
@@ -76,7 +83,12 @@ internal static class FocusAnnouncer
             Plugin.Logger.LogInfo($"[Screen] top={top?.GetIl2CppType().Name ?? "<none>"} stack=[{Screens.DescribeStack()}]");
             if (top != null && !starting)
             {
-                ScreenReader.Say(DescribeScreen(top), history: IsGameEvent(top));
+                // Tutorial hints and their key hints are queued; a screen opening right after them
+                // (the decision under a closing bubble) must not cut them off.
+                bool afterTutorial = Time.realtimeSinceStartup - Game.TutorialAnnouncer.LastSpokeAt < 2f;
+                string screenText = DescribeScreen(top);
+                _screenWords = Words(screenText);
+                ScreenReader.Say(screenText, interrupt: !afterTutorial, history: IsGameEvent(top));
                 // A selection inside the new screen, made just before it registered, was cut off by its
                 // name: read it again.
                 GameObject current = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
@@ -109,6 +121,7 @@ internal static class FocusAnnouncer
         Game.GameStateCache.Update(top);
         Game.ActionAnnouncer.Tick(top);
         Game.OpponentWatcher.Tick();
+        Game.OnlineTimerWatcher.Tick();
 
         // Tutorial hint bubbles lie over the decision they explain (the payment proposal, the picked
         // food); the decision's own announcements still apply.
@@ -290,6 +303,7 @@ internal static class FocusAnnouncer
         _slider = null;
         _dropdown = null;
         _lastValue = null;
+        _repeatChosenFrame = 0;
         _selected = selected;
         _watchedTexts = new List<string>();
         _lastBoardState = null;
@@ -306,6 +320,8 @@ internal static class FocusAnnouncer
         _toggle = selected.GetComponent<UnityEngine.UI.Toggle>();
         _slider = selected.GetComponent<UnityEngine.UI.Slider>();
         _dropdown = selected.GetComponent<TMPro.TMP_Dropdown>();
+        _input = selected.GetComponent<TMPro.TMP_InputField>();
+        _lastInputText = _input?.text?.Replace("\u200B", string.Empty);
         _lastValue = CurrentValue();
         _watchedTexts = WatchedTexts(selected);
         CardView selectedCard = CardDescriber.FindCardView(selected);
@@ -343,9 +359,11 @@ internal static class FocusAnnouncer
         if (groupId != _lastGroupId)
         {
             _lastGroupId = groupId;
-            string group = UiText.GroupLabel(selected);
-            if (group != null && !description.StartsWith(group))
-                description = $"{group} {description}";
+            string group = UiText.GroupLabel(selected, top == null ? null : top.transform);
+            // A header the screen announcement began with (the title of the chapter summary) is
+            // not repeated before the button.
+            if (group != null && !description.StartsWith(group) && !_screenWords.StartsWith(Words(group)))
+                description = group.EndsWith(":") ? $"{group} {description}" : $"{group}: {description}";
         }
 
         Plugin.Logger.LogInfo($"[Focus] {UiText.PathOf(selected)} => {description}");
@@ -355,6 +373,20 @@ internal static class FocusAnnouncer
 
     private static void WatchValue()
     {
+        WatchInput();
+
+        // Enter on an option that is already chosen (the preselected "Ja" of a yes/no question)
+        // changes nothing in the game; its state is repeated so the key does not go unanswered.
+        if (_toggle != null && _toggle.isOn && !Zones.ZoneNavigator.IsActive &&
+            (UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter)))
+            _repeatChosenFrame = Time.frameCount + 10;
+        if (_repeatChosenFrame > 0 && Time.frameCount >= _repeatChosenFrame)
+        {
+            _repeatChosenFrame = 0;
+            if (_toggle != null && _toggle.isOn && CurrentValue() == _lastValue)
+                ScreenReader.SayTransient(_lastValue);
+        }
+
         if (_toggle != null || _slider != null || _dropdown != null)
         {
             string value = CurrentValue();
@@ -399,7 +431,8 @@ internal static class FocusAnnouncer
         List<string> now = WatchedTexts(_selected);
         var changed = now.FindAll(text => !_watchedTexts.Contains(text));
         _watchedTexts = now;
-        if (changed.Count > 0 && _slider == null)
+        // Sliders say their value; text fields echo the typing themselves (WatchInput).
+        if (changed.Count > 0 && _slider == null && _input == null)
             ScreenReader.SayTransient(string.Join(", ", changed));
     }
 
@@ -414,6 +447,39 @@ internal static class FocusAnnouncer
 
         return texts;
     }
+
+    /// <summary>
+    /// Text fields in Unity give the screen reader no echo: this says each typed or deleted
+    /// character, and the whole text when it changes in other ways (pasted, cleared, selected away).
+    /// </summary>
+    private static void WatchInput()
+    {
+        if (_input == null)
+            return;
+        // The game adds and removes an invisible zero-width space at the end now and then.
+        string text = (_input.text ?? string.Empty).Replace("\u200B", string.Empty);
+        string last = _lastInputText ?? string.Empty;
+        if (text == last)
+            return;
+        _lastInputText = text;
+
+        string said;
+        if (text.Length == last.Length + 1 && text.StartsWith(last))
+            said = Character(text[text.Length - 1]);
+        else if (last.Length == text.Length + 1 && last.StartsWith(text))
+            said = Localization.Loc.Get("input.deleted", Character(last[last.Length - 1]));
+        else
+            said = text.Length == 0 ? Localization.Loc.Get("input.empty") : text;
+        ScreenReader.SayTransient(said);
+    }
+
+    private static string Character(char c) => c == ' ' ? Localization.Loc.Get("input.space") : c.ToString();
+
+    private static readonly System.Text.RegularExpressions.Regex NonWord = new(@"[^\p{L}\p{N}]+");
+
+    /// <summary>Lower-case words without punctuation, to compare texts that were joined differently.</summary>
+    private static string Words(string text) =>
+        text == null ? string.Empty : NonWord.Replace(text.ToLowerInvariant(), " ").Trim();
 
     private static string CurrentValue()
     {

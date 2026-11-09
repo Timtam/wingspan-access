@@ -57,23 +57,26 @@ internal static class UiDump
         return count;
     }
 
-    /// <summary>Logs I2 localization terms (with their translation) whose name matches a pattern.</summary>
-    public static void DumpTerms(string pattern, int limit = 400)
+    /// <summary>
+    /// Writes every I2 localization term with its raw translation in the current language to
+    /// BepInEx/terms-&lt;language&gt;.txt, one "term => text" per line (line breaks as \n), so the
+    /// game's own texts (tutorial hints, rich text tags) can be searched offline. Returns the count.
+    /// </summary>
+    public static int DumpAllTerms()
     {
-        var regex = new System.Text.RegularExpressions.Regex(pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         var terms = I2.Loc.LocalizationManager.GetTermsList(null);
-        int count = 0;
-        for (int i = 0; i < terms.Count && count < limit; i++)
+        var lines = new List<string>(terms.Count);
+        for (int i = 0; i < terms.Count; i++)
         {
             string term = terms[i];
-            if (!regex.IsMatch(term))
-                continue;
-            string translation = I2.Loc.LocalizationManager.GetTranslation(term, true, 0, true, false, null, null, true);
-            Plugin.Logger.LogInfo($"[Term] {term} => {translation}");
-            count++;
+            string translation = I2.Loc.LocalizationManager.GetTranslation(term, true, 0, true, false, null, null, true) ?? string.Empty;
+            lines.Add($"{term} => {translation.Replace("\r", string.Empty).Replace("\n", "\\n")}");
         }
 
-        Plugin.Logger.LogInfo($"[Term] {count} of {terms.Count} terms matched {pattern}");
+        string path = System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, $"terms-{I2.Loc.LocalizationManager.CurrentLanguageCode}.txt");
+        System.IO.File.WriteAllLines(path, lines);
+        Plugin.Logger.LogInfo($"[Term] {lines.Count} terms written to {path}");
+        return lines.Count;
     }
 
     /// <summary>Logs the names of all sprites in loaded TextMeshPro sprite assets (icons used in texts).</summary>

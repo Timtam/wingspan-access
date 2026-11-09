@@ -20,6 +20,7 @@ internal static class ScreenReaderCommands
             MessageHistory.Tick();
             Game.UndoKey.Tick(Screens.Top());
             Game.BirdSounds.Tick();
+            ConfirmPopupKeys.Tick(Screens.Top());
         }
 
         if (Keys.Pressed(KeyCode.F1))
@@ -41,7 +42,7 @@ internal static class ScreenReaderCommands
             bool control = Modifier(KeyCode.LeftControl) || Modifier(KeyCode.RightControl);
             bool shift = Modifier(KeyCode.LeftShift) || Modifier(KeyCode.RightShift);
             if (control && shift)
-                Diagnostics.UiDump.DumpTerms(@"food|nest|habitat|egg|icon|predator|flock|tuck|cache|bonus|wingspan|power|action|round|goal|turn|score|point", 600);
+                ScreenReader.SayTransient(Loc.Get("debug.terms", Diagnostics.UiDump.DumpAllTerms()));
             else if (control)
                 Diagnostics.UiDump.DumpSpriteNames();
             else if (shift)
@@ -131,7 +132,7 @@ internal static class ScreenReaderCommands
         {
             Plugin.Logger.LogInfo(
                 $"[Dump] selectable {UiText.PathOf(selectable.gameObject)} type={selectable.GetIl2CppType().Name} " +
-                $"interactable={selectable.interactable} => {UiText.Describe(selectable.gameObject)}");
+                $"interactable={selectable.interactable} => {UiText.Describe(selectable.gameObject)} [{UiText.ControlInternals(selectable.gameObject)}]");
         }
 
         // In the game, decisions are drawn by the shared HUD, so the visible texts of the whole canvas matter.

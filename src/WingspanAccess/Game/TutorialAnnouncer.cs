@@ -22,6 +22,12 @@ internal static class TutorialAnnouncer
     private static int _nextDriverLookup;
     private static int _lastCardId;
 
+    /// <summary>
+    /// When the tutorial last spoke (a hint or its keys). A screen that opens right after it (the
+    /// decision under a closing bubble) queues its announcement instead of cutting the hint off.
+    /// </summary>
+    public static float LastSpokeAt { get; private set; } = -100f;
+
     public static void Tick(GamepadScreen top)
     {
         if (Time.frameCount < _nextCheck)
@@ -83,6 +89,7 @@ internal static class TutorialAnnouncer
 
         Plugin.Logger.LogInfo($"[Tutorial] hint in {announcer.name}, task {task?.GetIl2CppType().Name} hint {task?._hintIndex}/{hints}, continue {announcer.IsContinueEnabled}");
         ScreenReader.Say(UiText.JoinSentences(parts), interrupt: false);
+        LastSpokeAt = Time.realtimeSinceStartup;
     }
 
     /// <summary>
@@ -111,7 +118,10 @@ internal static class TutorialAnnouncer
         _taskKeysSpoken = true;
         string keys = TaskKeys(task);
         if (keys != null)
+        {
             ScreenReader.Say(keys, interrupt: false);
+            LastSpokeAt = Time.realtimeSinceStartup;
+        }
     }
 
     private static string TaskKeys(Tutorial.Task task)

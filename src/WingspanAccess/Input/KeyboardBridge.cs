@@ -105,6 +105,13 @@ internal static class KeyboardBridge
                 continue;
             }
 
+            // Escape answers the game's yes/no questions itself (see ConfirmPopupKeys).
+            if (binding.Key == KeyCode.Escape && (UI.ConfirmPopupKeys.Swallowing || UI.ConfirmPopupKeys.Owns(top)))
+            {
+                binding.FramesLeft = 0;
+                continue;
+            }
+
             bool modifiersMatch = binding.Shift == shift && !control;
             if (UnityEngine.Input.GetKeyDown(binding.Key) && modifiersMatch)
                 binding.FramesLeft = MinimumHoldFrames;

@@ -196,7 +196,11 @@ internal static class GameReader
 
     private static void AddFood(List<string> parts, int amount, string icon)
     {
-        if (amount > 0)
-            parts.Add($"{amount} {Loc.Get("icon." + icon)}");
+        if (amount <= 0)
+            return;
+        // "2 Früchte", not "2 Frucht"; a language without a plural form uses the singular ("2 Samen").
+        string plural = "icon." + icon + ".plural";
+        string name = amount != 1 && Loc.HasOwn(plural) ? Loc.Get(plural) : Loc.Get("icon." + icon);
+        parts.Add($"{amount} {name}");
     }
 }

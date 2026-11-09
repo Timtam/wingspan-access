@@ -5,6 +5,29 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Added
+
+- Text fields (online name, invite a player) say each typed and deleted character.
+- Online games: zone 8 tells the time left for the turn, and the mod warns when it runs low.
+- Escape answers No in the game's yes/no questions (for example "join an online game?").
+
+### Fixed
+
+- Yes/no questions read their icon buttons as "Yes" and "No" instead of repeating the question;
+  other buttons without text are named after what they do.
+- The online menu tells the realtime and asynchronous "Standard game" apart by their headers.
+- Tutorial hints and key hints are no longer cut off by the screen that opens after them.
+- Icons are no longer read twice next to the same word in brackets (the nest types in chapter 2).
+- The German name of the birdfeeder die icon fits the game's sentences ("jedes Futter").
+- The pause menu no longer reads the opponents' speech bubbles before "Resume", and its
+  positions no longer count the invisible background button.
+- Options side by side are counted from left to right, as the arrow keys move: in the yes/no
+  questions "No" is 1 of 2 and "Yes" 2 of 2.
+- Enter on an option that is already chosen repeats "selected" instead of staying silent.
+- German: the plural of seeds is read as "Samen" instead of the English "seeds".
+- Food counts use the plural ("2 Wirbellose, 2 Früchte" instead of "2 Wirbelloses, 2 Frucht").
+- The chapter summary after a tutorial chapter no longer repeats its title before the buttons.
+
 ## [0.1.0] - 2026-11-09
 
 ### Added

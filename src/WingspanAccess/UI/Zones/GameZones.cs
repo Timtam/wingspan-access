@@ -428,6 +428,7 @@ internal sealed class StatusZone : Zone
         Rules.Player current = state.GetPlayer(state.CurrentPlayerID);
         if (current != null)
             lines.Add(Loc.Get("status.current", current.IsLocalPlayer() ? Loc.Get("zone.you") : GameReader.PlayerName(current)));
+        lines.AddRange(OnlineTimerWatcher.TimeLines());
         return lines;
     }
 }

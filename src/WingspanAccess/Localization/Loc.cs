@@ -55,6 +55,13 @@ internal static class Loc
 
     public static bool Has(string key) => Lookup(Resolve(_language), key) != null || Lookup(Fallback, key) != null;
 
+    /// <summary>
+    /// Whether the strings for the game's language (English when the mod has none for it) define the
+    /// key, without falling back to English. For word forms such as "key.plural" and "key.one": a
+    /// language that needs no form of its own (German "Samen") must not get the English one ("seeds").
+    /// </summary>
+    public static bool HasOwn(string key) => Lookup(Resolve(_language) ?? Fallback, key) != null;
+
     /// <summary>Uses "key.one" for a count of one when the language file has it ("1 Punkt" vs "2 Punkte").</summary>
     public static string Count(string key, int count, params object[] moreArgs)
     {
@@ -62,7 +69,7 @@ internal static class Loc
         args[0] = count;
         moreArgs.CopyTo(args, 1);
         string singular = key + ".one";
-        return count == 1 && Has(singular) ? Get(singular, args) : Get(key, args);
+        return count == 1 && HasOwn(singular) ? Get(singular, args) : Get(key, args);
     }
 
     /// <summary>Maps "pt-BR" to "pt-BR" or "pt", whichever table exists.</summary>
