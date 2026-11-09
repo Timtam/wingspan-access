@@ -5,6 +5,8 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-09
+
 ### Added
 
 - Installer for Windows (`WingspanAccessInstaller.exe`): finds Wingspan in your Steam libraries,
