@@ -243,7 +243,9 @@ internal static class UiText
         // Repeated icons count ("[egg][egg]" reads "2 eggs"); icon names are marked so that an icon
         // repeating the words right before it ("play a bird [play a bird]") can be dropped.
         text = RepeatedSprite.Replace(text, match => $" {SpriteTag.Matches(match.Value).Count} {SpritePlural(match.Groups[1].Value)} ");
-        text = SpriteTag.Replace(text, match => $" {IconStart}{SpriteName(match.Groups[1].Value)}{IconEnd} ");
+        // "2 [card]" and "alle [card]" read "2 cards", "all cards".
+        text = CountedSprite.Replace(text, match => $"{match.Groups[1].Value.TrimEnd()} {SpritePlural(match.Groups[2].Value)} ");
+        text = SpriteTag.Replace(text, match => $" {IconStart}{SpriteName(match.Groups[1].Value)}{IconPlural}{SpritePlural(match.Groups[1].Value)}{IconEnd} ");
         // Bold, colour and similar tags sit inside words or quotes („<b>bezahlen</b>“) and take no room.
         text = InlineTag.Replace(text, string.Empty);
         text = AnyTag.Replace(text, " ");
@@ -266,8 +268,12 @@ internal static class UiText
     private static readonly Regex OnePointGerman = new(@"(?<![\d,.])1 Punkte\b");
     private static readonly Regex RepeatedSprite = new(
         @"<sprite[^>]*?name=""?([^"">\s]+)""?[^>]*>(?:\s*<sprite[^>]*?name=""?\1""?[^>]*>)+", RegexOptions.IgnoreCase);
+    private static readonly Regex CountedSprite = new(
+        @"(\b(?:[2-9]|[1-9]\d+|alle|beide|mehrere|einige|viele|mehr|weitere|all|both|several|some|many|more)\s*)<sprite[^>]*?name=""?([^"">\s]+)""?[^>]*>",
+        RegexOptions.IgnoreCase);
     private const char IconStart = '\u0001';
     private const char IconEnd = '\u0002';
+    private const char IconPlural = '\u0003';
 
     /// <summary>Removes the icon markers; an icon whose name repeats the words before it is left out.</summary>
     private static string DropRepeatedIconNames(string text)
@@ -288,16 +294,24 @@ internal static class UiText
             }
 
             result.Append(text, position, start - position);
-            string name = text.Substring(start + 1, end - start - 1);
+            string[] forms = text.Substring(start + 1, end - start - 1).Split(IconPlural);
+            string name = forms[0];
             string before = result.ToString().TrimEnd();
-            bool repeats = name.Length > 0 && before.EndsWith(name, StringComparison.OrdinalIgnoreCase) &&
-                (before.Length == name.Length || !char.IsLetter(before[before.Length - name.Length - 1]));
+            // "Bonuskarten [bonus card]": the icon repeats the word before it, also in its plural form.
+            bool repeats = false;
+            foreach (string form in forms)
+            {
+                repeats |= form.Length > 0 && before.EndsWith(form, StringComparison.OrdinalIgnoreCase) &&
+                    (before.Length == form.Length || !char.IsLetter(before[before.Length - form.Length - 1]));
+            }
+
             if (!repeats)
                 result.Append(name);
             position = end + 1;
         }
 
-        return result.ToString().Replace(IconStart.ToString(), string.Empty).Replace(IconEnd.ToString(), string.Empty);
+        return result.ToString().Replace(IconStart.ToString(), string.Empty).Replace(IconEnd.ToString(), string.Empty)
+            .Replace(IconPlural.ToString(), string.Empty);
     }
 
     /// <summary>Plural name of an icon for counted repeats ("icon.egg.plural"), else its name.</summary>

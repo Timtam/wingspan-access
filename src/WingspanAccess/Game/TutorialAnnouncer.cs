@@ -131,15 +131,19 @@ internal static class TutorialAnnouncer
             return Loc.Get("tutorial.keys.any_action");
         }
 
+        // Food comes from the birdfeeder (zone 4) or, e.g. when trading food for an egg, from your supply.
+        Decision current = Screens.Find<Decision>();
+        bool fromFeeder = current == null || current.TryCast<BaseGainFoodFromBirdFeeder_Decision>() != null;
         var food = task.TryCast<Tutorial.ChooseFoodTask>();
         if (food != null)
-            return Loc.Get("tutorial.keys.food", GameReader.FoodTypeName(food.Food));
+            return Loc.Get(fromFeeder ? "tutorial.keys.food" : "tutorial.keys.food_choice", GameReader.FoodTypeName(food.Food));
         var foodDie = task.TryCast<Tutorial.ChooseSpecificFoodOnFoodDiceTask>();
         if (foodDie != null)
             return Loc.Get("tutorial.keys.food_side", GameReader.FoodTypeName(foodDie.Food));
         var foods = task.TryCast<Tutorial.ChooseMultipleFoodTask>();
         if (foods != null)
-            return Loc.Get("tutorial.keys.foods", $"{GameReader.FoodTypeName(foods.Food1)}, {GameReader.FoodTypeName(foods.Food2)}");
+            return Loc.Get(fromFeeder ? "tutorial.keys.foods" : "tutorial.keys.food_choice",
+                $"{GameReader.FoodTypeName(foods.Food1)}, {GameReader.FoodTypeName(foods.Food2)}");
 
         var card = task.TryCast<Tutorial.ChooseBirdCardTask>();
         if (card != null)
@@ -177,6 +181,23 @@ internal static class TutorialAnnouncer
             return Loc.Get("tutorial.keys.reroll");
         if (task.TryCast<Tutorial.CacheOrTakeSeedTask>() != null)
             return Loc.Get("tutorial.keys.option");
+        if (task.TryCast<Tutorial.ClickTooltipsTask>() != null || task.TryCast<Tutorial.ClickOnTooltipsOrMouseOverTooltipTask>() != null ||
+            task.TryCast<Tutorial.MouseOverTooltipTask>() != null)
+            return Loc.Get("tutorial.keys.tooltips");
+        if (task.TryCast<Tutorial.ClickHideInterfaceTask>() != null)
+            return Loc.Get("tutorial.keys.hide_interface");
+        if (task.TryCast<Tutorial.HideOverviewNonPlayerTask>() != null)
+            return Loc.Get("tutorial.keys.overview_close");
+        if (task.TryCast<Tutorial.DiscardEggToDrawCardTask>() != null)
+            return Loc.Get("tutorial.keys.exchange");
+        if (task.TryCast<Tutorial.FoodFromSupplyTask>() != null)
+            return Loc.Get("tutorial.keys.supply_food");
+        if (task.TryCast<Tutorial.ChooseBonusCardTask>() != null)
+            return Loc.Get("tutorial.keys.bonus_card");
+        if (task.TryCast<Tutorial.ChooseMultipleBirdsInHabitatThenConfirmTask>() != null)
+            return Loc.Get("tutorial.keys.board_several");
+        if (task.TryCast<Tutorial.ConfirmPayWithCardTask>() != null)
+            return Loc.Get("tutorial.keys.confirm");
         var portrait = task.TryCast<Tutorial.ClickPlayerPortraitTask>();
         if (portrait != null)
             return Loc.Get("tutorial.keys.portrait", PlayerNameById(portrait.PlayerID));
@@ -220,13 +241,20 @@ internal static class TutorialAnnouncer
                 boardHabitat = player.GetBirdHabitatType(bird);
         }
 
-        if (names.Count == 0)
-            return Loc.Get("tutorial.keys.board_any");
-
         // Zone 7 picks hand cards while choosing an action or a card to discard or tuck; other
         // decisions (selection screens) have their own cards.
         Decision decision = Screens.Find<Decision>();
         bool fromHand = decision == null || UI.Zones.HandZone.IsHandTask(decision);
+        if (names.Count == 0)
+        {
+            // No bird named: the decision tells where the cards come from.
+            if (decision?.TryCast<DrawBirds_Decision>() != null)
+                return Loc.Get("tutorial.keys.tray_any");
+            if (decision != null && fromHand && decision.TryCast<ChooseAction_Decision>() == null)
+                return Loc.Get("tutorial.keys.hand_any");
+            return Loc.Get("tutorial.keys.board_any");
+        }
+
         string list = string.Join(", ", names);
         if (inTray)
             return Loc.Get("tutorial.keys.card_tray", list);

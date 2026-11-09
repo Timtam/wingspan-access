@@ -5,9 +5,9 @@ It speaks the game's menus through your screen reader and lets you control the g
 
 > **Status: early development.** The main menus and the custom game setup are accessible. A basic game
 > against AI players can be played: the starting selection, the four actions (play a bird, gain food,
-> lay eggs, draw cards), and announcements of what the other players did. The first chapters of the
-> tutorial work with the keyboard. Many bird powers, expansion features and the online modes have not
-> been tested yet.
+> lay eggs, draw cards), and announcements of what the other players did. The tutorial of the base
+> game (all 14 chapters) can be played with the keyboard. Many bird powers, expansion features and the
+> online modes have not been tested yet.
 
 The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 
@@ -104,6 +104,8 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | X | Context action (gamepad X), for example trade a card for food or reroll the birdfeeder |
 | G | Goal board |
 | O | Overview of the habitats |
+| I | Show the game's tooltips (gamepad right stick); F3 reads the description of the selected element |
+| H | Hide the interface and show it again (gamepad left stick) |
 | Tab / Shift+Tab | Next / previous card |
 | Page Up / Page Down | Read the previous / next message again (see "Message history") |
 | Control+Page Up / Control+Page Down | Read the first / latest message |

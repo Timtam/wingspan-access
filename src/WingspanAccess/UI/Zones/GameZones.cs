@@ -156,20 +156,30 @@ internal sealed class TrayZone : Zone
 {
     public override string Title()
     {
-        var names = new List<string>();
+        List<string> names = TrayCards().ConvertAll(GameReader.BirdName);
+        return Loc.Get("game.tray", names.Count == 0 ? Loc.Get("game.nothing") : string.Join(", ", names));
+    }
+
+    /// <summary>
+    /// The face-up cards. Cards taken this turn stay in the rules model until the turn ends, but the
+    /// tray on screen no longer shows them, so only cards with a view in the tray count.
+    /// </summary>
+    private static List<int> TrayCards()
+    {
+        var ids = new List<int>();
         var visible = GameStateCache.State?.BirdsDeckState?.Visible;
         for (int i = 0; visible != null && i < visible.Count; i++)
-            names.Add(GameReader.BirdName(visible[i]));
-        return Loc.Get("game.tray", names.Count == 0 ? Loc.Get("game.nothing") : string.Join(", ", names));
+            ids.Add(visible[i]);
+        List<int> shown = ids.FindAll(id => TrayView(id) != null);
+        return shown.Count > 0 ? shown : ids;
     }
 
     public override List<ZoneItem> Items()
     {
         var items = new List<ZoneItem>();
-        var visible = GameStateCache.State?.BirdsDeckState?.Visible;
-        for (int i = 0; visible != null && i < visible.Count; i++)
+        foreach (int card in TrayCards())
         {
-            int id = visible[i];
+            int id = card;
             items.Add(new ZoneItem
             {
                 Summary = GameReader.BirdName(id),

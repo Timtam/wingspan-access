@@ -38,6 +38,8 @@ internal static class KeyboardBridge
         new Binding { Key = KeyCode.Tab, Shift = true, Button = () => VirtualGamepad.Buttons.PreviousCard },
         new Binding { Key = KeyCode.G, Button = () => VirtualGamepad.Buttons.ToggleGoals },              // Minus: goal board
         new Binding { Key = KeyCode.O, Button = () => VirtualGamepad.Buttons.ToggleHabitatsOverview },   // overview
+        new Binding { Key = KeyCode.I, Button = () => VirtualGamepad.Buttons.ShowTooltips },             // right stick: tooltips
+        new Binding { Key = KeyCode.H, Button = () => VirtualGamepad.Buttons.HideInterface },            // left stick: hide the interface
     };
 
     private static int _upFrames, _downFrames, _leftFrames, _rightFrames;

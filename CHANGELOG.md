@@ -25,6 +25,14 @@ release workflow turns that section into the next version and uses it as the rel
 - Bird and bonus cards read in full; hand cards say where the rules let you play them now.
 - Round end powers, the goal board with everyone's standings and points, and the final ranking.
 - Backspace takes the last picked food out of a payment or a cache again.
+- Tutorial: every hint is read in full with the card it shows, followed by the keys for the task
+  (for example "Press 7 for your hand, choose Blue Jay with Left and Right and press Enter"). All 14
+  chapters of the base game can be played with the keyboard; the chapter list says which chapters are
+  completed.
+- The news window at start is announced with its first entry; Enter reads a news item in full.
+- X is the context action (trade a card, egg or food in a habitat, reroll), I shows the game's
+  tooltips, H hides the interface, G opens the goal board and O the overview of the habitats.
+- Zone 9: Enter on a player makes 1 to 3 read that player's board; Enter on "You" switches back.
 - Speech and braille through Prism (NVDA, JAWS and other screen readers, SAPI fallback). The mod
   follows the game's language; its own messages are in English and German.
 - License: GNU General Public License, version 3 or later.

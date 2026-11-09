@@ -352,10 +352,20 @@ Escape leaves. Enter, Space and Tab stay with the game. The key table is at the 
 - Starting a game or chapter passes through the play menu and player setup; `GameStartPatch`
   (prefix on `GameLoader.InvokeStartGame`) silences them until the board or a bubble shows.
   `GameLoader.IsStartingGame` is not usable for this (true while the tutorial menu loads).
-- Not yet handled: tooltips (`ClickTooltipsTask`, the virtual controller's stick buttons are not
-  bound), hiding the interface, `DiscardEggToDrawCardTask`, `FoodFromSupplyTask`,
-  `ChooseBonusCardTask`, `HideOverviewNonPlayerTask`; chapters 10 to 14 are untested past the
-  start of chapter 10.
+- The virtual controller (startup log "[Gamepad] virtual controller ... bindings") maps
+  HideInterface to LeftStickButton and ShowTooltips to RightStickButton; the mod binds them to H
+  and I. All trades (forest card for a die, grassland food for an egg, wetland egg for a card) are
+  the Context button (X).
+- All 14 chapters of the base game were played through with the keyboard (2026-11-09). Handled
+  task types now also include ClickHideInterface, DiscardEggToDrawCard, ChooseBonusCard,
+  tooltips, overview, goals; the food and card hints depend on the decision under the bubble
+  (birdfeeder or supply; tray, hand or board). Tooltip tasks did not come up in the base game.
+- The tray zone shows only cards that still have a view in the tray: cards taken this turn stay in
+  `BirdsDeckState.Visible` until the turn ends.
+- The payment proposal can be plain pictures in `CostPaymentState/Background/FoodPanel`; the food
+  sprite names are `food_seed`, `food_fruit`, ... and `food_inverebrate` (sic). Eggs picked for a
+  bird's place are counted in `EggsPaymentStateController.ChooseEggsPanel.payment`.
+- Untested: the expansion tutorials (Europe, Oceania, Asia, Duet).
 - With the computer-use test harness the first key of a batch is sometimes lost (the window is
   re-activated); a Shift tap first avoids it. Not seen with a real keyboard so far.
 

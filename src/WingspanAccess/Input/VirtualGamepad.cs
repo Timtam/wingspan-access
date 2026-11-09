@@ -111,6 +111,8 @@ internal static class VirtualGamepad
         public static int PreviewPlayerRight => QaattButton.PreviewPlayerRight;
         public static int ToggleHabitatsOverview => QaattButton.ToggleHabitatsOverview;
         public static int ToggleGoals => QaattButton.ToggleGoals;
+        public static int ShowTooltips => QaattButton.RightStickButton;
+        public static int HideInterface => QaattButton.LeftStickButton;
     }
 
     internal static class Axes

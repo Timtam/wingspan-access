@@ -57,10 +57,20 @@ internal static class PlayBirdAnnouncer
                 parts.Add(Loc.Get(key));
             if (typeName == "CostPaymentStateController")
             {
-                parts.Add(CostText(decision));
-                parts.Add(payment);
-                if (payment != Loc.Get("playbird.choose_payment"))
-                    parts.Add(Loc.Get("playbird.confirm_hint"));
+                string cost = CostText(decision);
+                parts.Add(cost);
+                // Birds without a food cost ("no food") have nothing to pay.
+                if (cost == Loc.Get("playbird.cost", Loc.Get("icon.food_none")))
+                {
+                    parts.Add(Loc.Get("playbird.free"));
+                    _lastPayment = Loc.Get("playbird.free");
+                }
+                else
+                {
+                    parts.Add(payment);
+                    if (payment != Loc.Get("playbird.choose_payment"))
+                        parts.Add(Loc.Get("playbird.confirm_hint"));
+                }
             }
             else if (typeName == "EggsPaymentStateController")
             {
@@ -74,7 +84,7 @@ internal static class PlayBirdAnnouncer
             return;
         }
 
-        if (payment != _lastPayment)
+        if (payment != _lastPayment && _lastPayment != Loc.Get("playbird.free"))
         {
             _lastPayment = payment;
             ScreenReader.Say(payment);
@@ -137,9 +147,10 @@ internal static class PlayBirdAnnouncer
         return UiText.JoinSentences(parts);
     }
 
+    // Parts of the food sprite names ("food_seed"; the game spells "food_inverebrate").
     private static readonly (string Part, FoodType Type)[] FoodSprites =
     {
-        ("invertebrate", FoodType.Invertebrate), ("seed", FoodType.Seed), ("fruit", FoodType.Fruit),
+        ("inver", FoodType.Invertebrate), ("seed", FoodType.Seed), ("fruit", FoodType.Fruit),
         ("fish", FoodType.Fish), ("rodent", FoodType.Rodent), ("nectar", FoodType.Nectar),
     };
 
@@ -196,7 +207,9 @@ internal static class PlayBirdAnnouncer
     /// <summary>Eggs chosen to pay for the bird's place: "1 von 1 Ei gewählt".</summary>
     private static string EggText(PlayBird_Decision decision)
     {
-        BirdPayment payment = decision._currentData?.BirdPayment;
+        // The egg panel works on its own copy of the payment while eggs are being picked.
+        var eggs = decision.CurrentState?.TryCast<View.Decisions.PlayBird.States.EggsPaymentStateController>();
+        BirdPayment payment = eggs?.ChooseEggsPanel?.payment ?? decision._currentData?.BirdPayment;
         int cost = EggCost(decision);
         int chosen = payment?.EggPay?.Count ?? 0;
         string text = Loc.Count("playbird.eggs_chosen", cost, chosen);
