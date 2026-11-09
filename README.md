@@ -6,8 +6,9 @@ It speaks the game's menus through your screen reader and lets you control the g
 > **Status: early development.** The main menus and the custom game setup are accessible. A basic game
 > against AI players can be played: the starting selection, the four actions (play a bird, gain food,
 > lay eggs, draw cards), and announcements of what the other players did. The tutorial of the base
-> game (all 14 chapters) can be played with the keyboard. Many bird powers, expansion features and the
-> online modes have not been tested yet.
+> game (all 14 chapters) can be played with the keyboard, and first online games between two blind
+> players have been played (see "Playing online"). Many bird powers and expansion features have not
+> been tested yet.
 
 The mod is unofficial and not affiliated with Monster Couch or Stonemaier Games.
 
@@ -106,7 +107,7 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | Escape | Back (gamepad B). Inside a zone: back to the game |
 | Backspace | Take the last picked food out again (paying for a bird, caching food on a bird) |
 | X | Context action (gamepad X), for example trade a card for food or reroll the birdfeeder |
-| G | Goal board |
+| G | Goal board. Up and Down read it line by line (one round, one nectar habitat, your points), Home and End jump, Left and Right switch between goals and nectar |
 | O | Overview of the habitats |
 | I | Show the game's tooltips (gamepad right stick); F3 reads the description of the selected element |
 | H | Hide the interface and show it again (gamepad left stick) |
@@ -135,8 +136,12 @@ selected item line by line (for a bird: name, eggs and cards on it, points, habi
 nest, egg limit, wingspan, power, where it can be played, then what the printed card tells about
 the bird: Latin name, the continents it lives on and the trivia text), Escape goes back to the
 game. S plays the call of the bird under the cursor and V the game's spoken trivia about it. Pressing
-the zone key again repeats the overview. A new screen or task closes the zone, so the arrow keys
-work for the game's own choices again.
+the zone key again repeats the overview. A question over the task (like "Skip this power?") or a
+choice the task opens (like nectar or seed for a die taken in zone 4) pauses the zone, so the arrows
+reach it; once it is answered the zone goes on ("Back in zone 5"). A new task closes the zone,
+so the arrow keys work for the game's own choices again. Outside zones, too, Up and Down read the
+selected card line by line where the game's selection is on a card in a single row, like the tray
+while drawing or the hand.
 
 | Key | Zone |
 | --- | --- |
@@ -179,10 +184,30 @@ Announcements of the selected element, zones and information you asked for (F-ke
 5. When the other players have moved, the mod tells you what they did. Bird powers that give you an
    extra action between turns are announced as "out-of-turn action".
 6. At the end of a round the mod names the birds whose "round end" powers you can activate, then
-   reads the goal board. At the end of the game it reads the ranking with the points per category.
+   reads the goal board. At the end of the game it reads the ranking; Up and Down then read each
+   place and each category with everybody's points, Home and End jump.
 
 In the play menu, "Your games" lists saved games with mode, round, turns left, players and when the
 game was started; Enter continues a game.
+
+### Playing online
+
+- The online menu reads the realtime and the asynchronous games (72 hours per turn) by their
+  headers. "Your active games" lists each game with its state: an invitation and its host, whose
+  turn it is and the time left, finished or timed out. When the menu opens, the mod says in how
+  many games it is your turn.
+- New invitations are announced as they arrive. In a game, the other players' moves are read from
+  the speech bubbles at their portraits, and when your turn begins the mod sums up what they did.
+- When it is your turn in another online game, or your time there runs low, the game shows a short
+  notification; the mod reads it with the game's mode and players. You find the game in the online
+  menu under "Your active games". The game settings ("Online notifications") choose which
+  notifications appear.
+- Your online name: in the online menu, the button with your name opens your profile; "Change
+  username" opens the text field. Type the name, press Enter to move to the confirm button and
+  Enter again.
+- The friend list ("Your friends", and "Invite a friend" in a custom game) has two parts, your
+  platform friends and your friends in the game; the arrow keys move between them and between
+  friends.
 
 ## Uninstalling
 

@@ -23,8 +23,14 @@ internal static class GoalMatDescriber
     private static string _panel;
     private static int _nextCheck;
 
-    /// <summary>The open board with the standings, then the local player's points; null for other screens.</summary>
-    public static string Describe(GamepadScreen screen, bool withTotals = true)
+    /// <summary>The line Up and Down are on (-1: none read yet on this board).</summary>
+    private static int _line = -1;
+
+    /// <summary>
+    /// The open board line by line: one line per round (goal, standings, points by place) or per
+    /// habitat of the nectar board, then the local player's points; null for other screens.
+    /// </summary>
+    public static List<string> Lines(GamepadScreen screen, bool withTotals = true)
     {
         if (screen.GetIl2CppType().Name != ScreenType)
             return null;
@@ -32,21 +38,41 @@ internal static class GoalMatDescriber
         if (flow == null)
             return null;
 
-        var parts = new List<string>();
+        var lines = new List<string>();
         string panel = OpenPanel(flow);
         if (panel == "Goals_Panel")
-            parts.AddRange(GoalRows(flow.Find(panel)));
+            lines.AddRange(GoalRows(flow.Find(panel)));
         else if (panel == "Nectar_Panel")
-            parts.AddRange(NectarRows(flow.Find(panel)));
+            lines.AddRange(NectarRows(flow.Find(panel)));
 
         var board = screen.TryCast<View.UI.Game.Windows.Goals.GoalAndNectarMat_Screen>();
         string totals = withTotals ? Totals(flow.Find("PlayerPointsLabel/Points"), board?._playerController?.Player) : null;
         if (totals != null)
-            parts.Add(totals);
-        return UiText.JoinSentences(parts);
+            lines.Add(totals);
+        return lines;
     }
 
-    /// <summary>Reads the other board when the player switches tabs.</summary>
+    /// <summary>The whole open board at once (F2); null for other screens.</summary>
+    public static string Describe(GamepadScreen screen, bool withTotals = true)
+    {
+        List<string> lines = Lines(screen, withTotals);
+        return lines == null ? null : UiText.JoinSentences(lines);
+    }
+
+    /// <summary>When the board opens: its first line; Up and Down read the rest (see the key hint).</summary>
+    public static string Opening(GamepadScreen screen)
+    {
+        List<string> lines = Lines(screen);
+        if (lines == null)
+            return null;
+        _line = 0;
+        return lines.Count == 0 ? string.Empty : lines[0];
+    }
+
+    /// <summary>Whether the board is open, whose lines Up and Down read instead of moving the game's selection.</summary>
+    public static bool TakesArrows(string topType) => topType == ScreenType;
+
+    /// <summary>Up and Down read the board line by line, Home and End jump; the other tab is read when it opens.</summary>
     public static void Tick(GamepadScreen top)
     {
         if (top == null || top.GetIl2CppType().Name != ScreenType)
@@ -54,6 +80,8 @@ internal static class GoalMatDescriber
             _screenId = 0;
             return;
         }
+
+        ReadLines(top);
 
         if (Time.frameCount < _nextCheck)
             return;
@@ -71,8 +99,29 @@ internal static class GoalMatDescriber
         if (panel == _panel)
             return;
         _panel = panel;
-        if (panel != null)
-            ScreenReader.SayTransient(Describe(top, withTotals: false), interrupt: false);
+        if (panel == null)
+            return;
+        List<string> lines = Lines(top);
+        _line = 0;
+        if (lines.Count > 0)
+            ScreenReader.SayTransient(lines[0], interrupt: false);
+    }
+
+    private static void ReadLines(GamepadScreen top)
+    {
+        int step = UnityEngine.Input.GetKeyDown(KeyCode.DownArrow) ? 1
+            : UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) ? -1
+            : 0;
+        bool home = UnityEngine.Input.GetKeyDown(KeyCode.Home);
+        bool end = UnityEngine.Input.GetKeyDown(KeyCode.End);
+        if (step == 0 && !home && !end)
+            return;
+
+        List<string> lines = Lines(top);
+        if (lines == null || lines.Count == 0)
+            return;
+        _line = home ? 0 : end ? lines.Count - 1 : Mathf.Clamp(_line + step, 0, lines.Count - 1);
+        ScreenReader.SayTransient(lines[_line]);
     }
 
     private static string OpenPanel(Transform flow)
@@ -182,7 +231,7 @@ internal static class GoalMatDescriber
                 // Rounds still running only have provisional points.
                 Rules.GoalPlayer result = Result(goal, player.ID);
                 if (result != null && result.P_Score > 0)
-                    entry = $"{entry} ({Loc.Count(round > state.RoundsCounter ? "goalmat.points_so_far" : "goalmat.points", result.P_Score)})";
+                    entry = $"{entry} ({Loc.Count(round > state.P_RoundsCounter ? "goalmat.points_so_far" : "goalmat.points", result.P_Score)})";
                 if (player.IsLocalPlayer())
                     standings.Insert(0, entry);
                 else
@@ -222,7 +271,7 @@ internal static class GoalMatDescriber
             Transform pointsText = portrait.transform.Find("PointsTxt");
             TMPro.TMP_Text text = pointsText == null ? null : pointsText.GetComponent<TMPro.TMP_Text>();
             string count = text == null ? "?" : UiText.Clean(text.text);
-            string name = PlayerName(portrait.CurrentPlayerColorName.ToString());
+            string name = PlayerName(portrait);
             string entry = $"{name} {count}";
             if (name == Loc.Get("goalmat.you"))
                 standings.Insert(0, entry); // the local player first
@@ -273,16 +322,27 @@ internal static class GoalMatDescriber
         return Loc.Get("goalmat.totals", string.Join(", ", parts));
     }
 
+    /// <summary>
+    /// The player a portrait shows: by the player id it was set up with, else by its color (online
+    /// both players can have the same color).
+    /// </summary>
+    public static string PlayerName(PlayerPortraitUI portrait)
+    {
+        string id = portrait._targetPlayerId;
+        Rules.Player player = string.IsNullOrEmpty(id) ? null : Game.GameStateCache.State?.GetPlayer(id);
+        return player != null ? Name(player) : PlayerName(portrait.CurrentPlayerColorName.ToString());
+    }
+
     /// <summary>A player by portrait color: "du" for the local player, else the player's name or color.</summary>
     public static string PlayerName(string color)
     {
         Rules.Player local = Game.GameStateCache.LocalPlayer;
-        if (local != null && local.Color.ToString() == color)
+        if (local != null && local.P_Color.ToString() == color)
             return Loc.Get("goalmat.you");
         var players = Game.GameStateCache.State?.Players;
         for (int i = 0; players != null && i < players.Count; i++)
         {
-            if (players[i] != null && players[i].Color.ToString() == color)
+            if (players[i] != null && players[i].P_Color.ToString() == color)
                 return Game.GameReader.PlayerName(players[i]);
         }
 

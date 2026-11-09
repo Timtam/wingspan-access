@@ -120,6 +120,16 @@ internal static class KeyboardBridge
         TrackSetupCard(top);
         if (!UI.Zones.ZoneNavigator.IsActive && UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) && SelectSetupCardAbove(top))
             Swallowed.Add(KeyCode.UpArrow);
+
+        // On a card where the game has nowhere to go, Up and Down read the card line by line.
+        UI.CardLineReader.Follow();
+        if (!UI.Zones.ZoneNavigator.IsActive && !Swallowed.Contains(KeyCode.UpArrow) && !Swallowed.Contains(KeyCode.DownArrow))
+        {
+            if (UnityEngine.Input.GetKeyDown(KeyCode.DownArrow) && UI.CardLineReader.TryRead(1))
+                Swallowed.Add(KeyCode.DownArrow);
+            else if (UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) && UI.CardLineReader.TryRead(-1))
+                Swallowed.Add(KeyCode.UpArrow);
+        }
         string topType = top == null ? null : top.GetIl2CppType().Name;
         bool paging = topType != null && PagingScreens.ContainsKey(topType);
 
@@ -207,7 +217,9 @@ internal static class KeyboardBridge
         foreach (int button in ManagedButtons())
             VirtualGamepad.SetButton(button, pressedButtons.Contains(button));
 
-        float y = zone ? 0f : Held(KeyCode.UpArrow, ref _upFrames) - Held(KeyCode.DownArrow, ref _downFrames);
+        // On the goal board and the final result Up and Down read lines (see GoalMatDescriber, GameEndDescriber).
+        bool lines = topType != null && (UI.GoalMatDescriber.TakesArrows(topType) || UI.GameEndDescriber.TakesArrows(topType));
+        float y = zone || lines ? 0f : Held(KeyCode.UpArrow, ref _upFrames) - Held(KeyCode.DownArrow, ref _downFrames);
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationX, x);
         VirtualGamepad.SetAxis(VirtualGamepad.Axes.NavigationY, y);
     }

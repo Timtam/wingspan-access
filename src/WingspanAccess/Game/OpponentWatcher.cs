@@ -26,15 +26,33 @@ internal static class OpponentWatcher
     private static readonly Dictionary<string, Snapshot> Snapshots = new();
 
     /// <summary>
-    /// The other players as they were when the local player's turn last began, and those whose turn
-    /// was announced since. Online the other player's moves arrive all at once while the game
-    /// reloads, without the current player changing on this side; their turn is then read when the
-    /// local player's turn begins.
+    /// The other players as last reported (at the local player's turn or after their own turn).
+    /// Online the other player's moves arrive all at once while the game reloads, without the
+    /// current player changing on this side; what changed since is read when the local player's
+    /// turn begins.
     /// </summary>
     private static readonly Dictionary<string, Snapshot> AtLocalTurn = new();
-    private static readonly HashSet<string> Announced = new();
     private static bool _turnPopupShown;
-    private static bool _localTurnStarting;
+    /// <summary>Frame at which the local turn's summary is read (0: none pending).</summary>
+    private static int _localTurnFrame;
+
+    /// <summary>Frame at which the moves that came with a reloaded board are read (0: none pending).</summary>
+    private static int _reloadFrame;
+
+    /// <summary>A new game starts: nothing from the previous one counts.</summary>
+    public static void Reset()
+    {
+        Snapshots.Clear();
+        AtLocalTurn.Clear();
+        _currentPlayer = null;
+        _pendingPlayer = null;
+        _localTurnFrame = 0;
+        _reloadFrame = 0;
+    }
+
+    /// <summary>The game set up a new board state (online: another player's moves arrived).</summary>
+    public static void BoardReloaded() => _reloadFrame = Time.frameCount + LocalTurnDelayFrames;
+    private const int LocalTurnDelayFrames = 30;
     private static string _currentPlayer;
     private static string _pendingPlayer;
     private static int _pendingFrame = -1;
@@ -59,6 +77,9 @@ internal static class OpponentWatcher
             _pendingPlayer = null;
         }
 
+        // Whose turn it is as the game last saved it, not the live value: against the AI the saved
+        // copy changes as each turn starts, which the AI summaries rely on. Online it changes only
+        // now and then; there the summary at the local turn covers the other player's moves.
         string current = state.CurrentPlayerID;
         if (current != _currentPlayer)
         {
@@ -83,21 +104,38 @@ internal static class OpponentWatcher
                 Snapshots[each.ID] = Take(each);
         }
 
-        // The local player's turn: the summary waits for its first task, which brings the fresh game
-        // state (online, the turn popup can still show the state from before the other moves).
+        // Players seen for the first time (an online game just loaded, the other player's move still to
+        // come): their state now is the "before" of the summary at the local turn.
+        for (int i = 0; i < state.Players.Count; i++)
+        {
+            Rules.Player each = state.Players[i];
+            if (each != null && !string.IsNullOrEmpty(each.ID) && !each.IsLocalPlayer() && !AtLocalTurn.ContainsKey(each.ID))
+                AtLocalTurn[each.ID] = Take(each);
+        }
+
+        // The local player's turn: the summary follows the turn popup a moment later, when the board
+        // shows the other players' moves (online they arrive all at once while the game reloads).
         GamepadScreen top = UI.Screens.Top();
         bool turnPopup = top?.TryCast<NewTurnAnnouncement_Popup>() != null;
         if (turnPopup && !_turnPopupShown)
-            _localTurnStarting = true;
+            _localTurnFrame = Time.frameCount + LocalTurnDelayFrames;
         _turnPopupShown = turnPopup;
-        if (_localTurnStarting && top?.TryCast<Decision>() != null && top.TryCast<WaitForOtherPlayer_Decision>() == null)
+        if (_localTurnFrame > 0 && Time.frameCount >= _localTurnFrame)
         {
-            _localTurnStarting = false;
+            _localTurnFrame = 0;
+            OnLocalTurn(state);
+        }
+
+        // Online the other player's moves arrive with a new board state: read them right away, before
+        // a power of yours that reacts to them or your turn.
+        if (_reloadFrame > 0 && Time.frameCount >= _reloadFrame)
+        {
+            _reloadFrame = 0;
             OnLocalTurn(state);
         }
     }
 
-    /// <summary>The local player's turn begins: reads the other players' turns nothing announced yet.</summary>
+    /// <summary>Reads what the other players changed since their last report (at the local turn, or when their moves arrive).</summary>
     private static void OnLocalTurn(Rules.GameState state)
     {
         if (_pendingPlayer != null)
@@ -113,10 +151,10 @@ internal static class OpponentWatcher
             if (player == null || string.IsNullOrEmpty(player.ID) || player.IsLocalPlayer())
                 continue;
             Snapshot now = Take(player);
-            if (!Announced.Contains(player.ID) && AtLocalTurn.TryGetValue(player.ID, out Snapshot before))
+            if (AtLocalTurn.TryGetValue(player.ID, out Snapshot before))
             {
                 string summary = Describe(player, before, now);
-                Plugin.Logger.LogInfo($"[Opponent] at the local turn, {player.ID}: {summary ?? "no change"}");
+                Plugin.Logger.LogInfo($"[Opponent] changes of {player.ID}: {summary ?? "none"}");
                 if (summary != null)
                     ScreenReader.Say(summary, interrupt: false);
             }
@@ -125,7 +163,6 @@ internal static class OpponentWatcher
             Snapshots[player.ID] = now;
         }
 
-        Announced.Clear();
     }
 
     /// <summary>Announces the finished player's changes and remembers their new state.</summary>
@@ -140,10 +177,9 @@ internal static class OpponentWatcher
         {
             string summary = Describe(player, before, after);
             if (summary != null)
-            {
                 ScreenReader.Say(summary, interrupt: false);
-                Announced.Add(playerId);
-            }
+            // What was read counts as known: the summary at the local turn only adds what changed since.
+            AtLocalTurn[playerId] = after;
         }
 
         Snapshots[playerId] = after;
@@ -153,8 +189,8 @@ internal static class OpponentWatcher
     {
         var snapshot = new Snapshot
         {
-            HandCards = player.BirdCards?.Count ?? 0,
-            BonusCards = player.BonusCards?.Count ?? 0,
+            HandCards = GameReader.HandCount(player),
+            BonusCards = GameReader.BonusCount(player),
         };
 
         foreach (ActionType habitat in new[] { ActionType.GainFood, ActionType.LayEggs, ActionType.DrawBirds })

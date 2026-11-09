@@ -229,7 +229,7 @@ internal static class TutorialAnnouncer
         var names = new List<string>();
         bool inTray = false, inHand = false;
         ActionType boardHabitat = ActionType.None;
-        var tray = GameStateCache.State?.BirdsDeckState?.Visible;
+        List<int> tray = GameReader.TrayBirds();
         Rules.Player player = GameStateCache.LocalPlayer;
         // The hand as zone 7 lists it: the bird card views in the local player's hand.
         var hand = new HashSet<int>();
@@ -244,8 +244,7 @@ internal static class TutorialAnnouncer
         foreach (int bird in birds)
         {
             names.Add(GameReader.BirdName(bird));
-            for (int i = 0; tray != null && i < tray.Count; i++)
-                inTray |= tray[i] == bird;
+            inTray |= tray.Contains(bird);
             inHand |= hand.Contains(bird);
             if (player != null && HabitatKey(player.GetBirdHabitatType(bird)) > 0)
                 boardHabitat = player.GetBirdHabitatType(bird);

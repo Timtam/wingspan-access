@@ -25,6 +25,7 @@ internal static class ScreenReaderCommands
 
         Game.OnlineInviteAnnouncer.Tick();
         Game.SpeechBubbleAnnouncer.Tick();
+        Game.OnlineNotificationAnnouncer.Tick();
 
         if (Keys.Pressed(KeyCode.F1))
             ScreenReader.SayTransient(Loc.Get("help.keys"));

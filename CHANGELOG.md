@@ -5,6 +5,48 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Added
+
+- The game's notifications about your other online games are read ("It is your turn in an online
+  game!", "1 minute left"), with the game's mode and players and where to find it. Opening the
+  online menu says in how many games it is your turn.
+- The goal board (G) is read line by line: it opens with its first line, Up and Down read one round
+  (or one nectar habitat) and finally your points, Home and End jump to the first and last line.
+- The final result is read line by line: it opens with the places, then Up and Down read each place
+  and each category with everybody's points ("Birds: OvsXMGdgvD 31, you 37"), and the food left
+  when it decides a tie. Home and End jump to the first and last line.
+
+### Fixed
+
+- The final result names every player correctly. Online both players can have the same color, and
+  the other player was called "you" too; the players now come from the game's scores. The nectar
+  standings on the goal board name players by their id the same way.
+- Online, the other players' moves are announced: the mod now catches every speech bubble at a
+  player's portrait ("I drew birds."), also those the game sets on the bubble directly, and it
+  sums up their changes as soon as their moves arrive (before a power of yours that reacts to
+  them), or else when your turn begins. It reports everything that changed since the player's
+  last report, so a move is no longer lost when a round begins with the other player's turn.
+  After loading an online game, the other players' state counts as the start.
+- Bird powers that take a card from the tray (one with a certain nest, after refilling or
+  resetting the tray) say which card is chosen ("Chosen: ... All cards chosen, Space confirms"),
+  and chosen cards read "selected" like when drawing.
+- The other players' hand size is read as it is now. Online it lagged a turn behind, so the summary
+  of their moves left out cards they drew and said "drew a card" when they played a bird. The
+  players zone (9), the status (8, also whose turn it is), the actions left and the tray had the
+  same lag.
+- A question over a task, like "Skip this power?" while drawing several birds, no longer closes
+  the open zone: it pauses, and when the question is answered the zone goes on ("Back in zone 5"),
+  so Up and Down read the cards again. The same goes for a choice the task opens, like nectar or
+  seed for a die taken in zone 4: it is read right away and the arrows reach it, without leaving
+  the zone with Escape first.
+- Up and Down read the selected card line by line wherever the game's own selection is on a card in
+  a single row (the tray while drawing, the hand), also without opening a zone.
+- At the end of a round (and of the game) the birds still to activate are named correctly, also
+  after the first one. Before, a bird whose condition was not met (one that counts double for a
+  round goal it does not meet) was named as still to activate; such birds are now named as "cannot
+  be activated". The task also tells that the game only offers the birds of the habitat on screen,
+  and that 1 to 3 switch it.
+
 ## [0.1.2] - 2026-11-09
 
 ### Added

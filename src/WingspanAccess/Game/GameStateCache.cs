@@ -14,16 +14,25 @@ internal static class GameStateCache
         if (decision == null)
             return;
 
-        GameStateDriver driver = decision.gameStateDriver;
-        if (driver != null)
-            Driver = driver;
+        Use(decision.gameStateDriver);
     }
 
-    /// <summary>Takes the driver the board view is set up with or starts a turn with.</summary>
+    /// <summary>
+    /// Takes the driver the board view is set up with, starts a turn with or a task works with. Online
+    /// the game sets up a new one whenever another player's moves arrive; the opponent watcher then
+    /// reads them right away.
+    /// </summary>
     public static void Use(GameStateDriver driver)
     {
-        if (driver != null)
-            Driver = driver;
+        if (driver == null)
+            return;
+        if (Driver != null && Driver.Pointer != driver.Pointer)
+        {
+            Plugin.Logger.LogInfo("[State] board driver changed");
+            OpponentWatcher.BoardReloaded();
+        }
+
+        Driver = driver;
     }
 
     public static Rules.GameState State => Driver?.GameState;

@@ -7,7 +7,8 @@ namespace WingspanAccess.Game;
 
 /// <summary>
 /// At round end (and game end) the player activates birds with "round end" powers one by one.
-/// The game highlights them on the board; this names the birds still to activate and their habitat.
+/// The game highlights them on the board; this names the birds still to activate and their habitat,
+/// and the birds with such a power that cannot be activated this time.
 /// </summary>
 internal static class SpecialPowersAnnouncer
 {
@@ -40,16 +41,33 @@ internal static class SpecialPowersAnnouncer
             return;
         _nextCheck = Time.frameCount + 15;
 
-        // Birds still to activate; before the first activation the game may only fill the list of candidates.
-        var birds = decision._notActivatedBirds;
-        if (birds == null || birds.Count == 0)
-            birds = decision._powersActivated == 0 ? decision._birdsToResolve : birds;
         if (!_logged)
         {
             _logged = true;
             Plugin.Logger.LogInfo($"[Powers] toResolve={decision._birdsToResolve?.Count} notActivated={decision._notActivatedBirds?.Count} activated={decision._powersActivated}/{decision._powersToActivate}");
         }
 
+        // The birds to resolve get fewer with each activation. The other list holds the birds whose
+        // condition is not met (one that counts double for a round goal it does not meet): the game
+        // counts them among "not activated" and offers them nowhere.
+        var parts = new List<string>();
+        string remaining = Names(decision._birdsToResolve);
+        if (remaining != null)
+            parts.Add(Loc.Get("powers.to_activate", remaining));
+        string blocked = Names(decision._notActivatedBirds);
+        if (blocked != null)
+            parts.Add(Loc.Get("powers.not_activatable", blocked));
+
+        string text = parts.Count == 0 ? null : UI.UiText.JoinSentences(parts);
+        if (text == _last)
+            return;
+        _last = text;
+        if (text != null)
+            ScreenReader.Say(text, interrupt: false);
+    }
+
+    private static string Names(Il2CppSystem.Collections.Generic.List<Rules.Bird> birds)
+    {
         var names = new List<string>();
         for (int i = 0; birds != null && i < birds.Count; i++)
         {
@@ -57,12 +75,7 @@ internal static class SpecialPowersAnnouncer
                 names.Add(Describe(birds[i]));
         }
 
-        string text = names.Count == 0 ? null : Loc.Get("powers.to_activate", string.Join(", ", names));
-        if (text == _last)
-            return;
-        _last = text;
-        if (text != null)
-            ScreenReader.Say(text, interrupt: false);
+        return names.Count == 0 ? null : string.Join(", ", names);
     }
 
     /// <summary>"Mauersegler (Grasland)": the bird and the habitat it sits in.</summary>

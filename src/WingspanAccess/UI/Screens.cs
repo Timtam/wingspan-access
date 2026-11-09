@@ -31,6 +31,21 @@ internal static class Screens
         return null;
     }
 
+    /// <summary>Whether the screen with this instance id is on the stack, on top or under others.</summary>
+    public static bool Contains(int instanceId)
+    {
+        GamepadController controller = GamepadController.I;
+        AlmostStack<GamepadScreen> stack = controller == null ? null : controller.screenStack;
+        for (int i = 0; instanceId != 0 && stack?.items != null && i < stack.items.Count; i++)
+        {
+            GamepadScreen screen = stack.items[i];
+            if (screen != null && screen.GetInstanceID() == instanceId)
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Type names of all screens on the stack, in storage order.</summary>
     public static string DescribeStack()
     {

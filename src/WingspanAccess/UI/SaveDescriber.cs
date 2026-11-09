@@ -122,6 +122,21 @@ internal static class SaveDescriber
         }
     }
 
+    /// <summary>"Standardspiel, Spieler: Tonilanda Rot, OvsXMGdgvD Rot": a game's mode and players, for notifications.</summary>
+    public static string ModeAndPlayers(GameSave save)
+    {
+        if (save == null)
+            return null;
+        var parts = new List<string>();
+        string mode = save.GameType.ToString().Replace("_Online", string.Empty);
+        if (Loc.Has("mode." + mode))
+            parts.Add(Loc.Get("mode." + mode));
+        string players = Players(save);
+        if (players.Length > 0)
+            parts.Add(Loc.Get("save.players", players));
+        return parts.Count == 0 ? null : string.Join(", ", parts);
+    }
+
     private static string Players(GameSave save)
     {
         var names = new List<string>();

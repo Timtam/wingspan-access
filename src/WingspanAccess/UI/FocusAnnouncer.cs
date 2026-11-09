@@ -120,6 +120,7 @@ internal static class FocusAnnouncer
         WatchPopupTexts(top);
         DecisionAnnouncer.Tick(top);
         GoalMatDescriber.Tick(top);
+        GameEndDescriber.Tick(top);
         NewsDescriber.Tick(top);
         Game.GameStateCache.Update(top);
         Game.ActionAnnouncer.Tick(top);
@@ -145,6 +146,7 @@ internal static class FocusAnnouncer
     public static void GameStarting()
     {
         _startedAt = Time.realtimeSinceStartup;
+        Game.OpponentWatcher.Reset();
         Plugin.Logger.LogInfo("[Focus] starting a game");
     }
 
@@ -163,7 +165,7 @@ internal static class FocusAnnouncer
         string typeName = screen.GetIl2CppType().Name;
         string name = UiText.ScreenName(screen);
         var parts = new List<string> { name };
-        string special = GoalMatDescriber.Describe(screen) ?? GameEndDescriber.Describe(screen);
+        string special = GoalMatDescriber.Opening(screen) ?? GameEndDescriber.Opening(screen);
         if (special != null)
         {
             parts.Add(special);

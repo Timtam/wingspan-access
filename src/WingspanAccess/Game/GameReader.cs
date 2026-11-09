@@ -23,8 +23,37 @@ internal static class GameReader
         int wetland = player.GetAllBirdsInHabitat(ActionType.DrawBirds)?.Count ?? 0;
         string food = FoodList(player._pf);
         return Loc.Get("game.opponent", name, forest, grass, wetland, food.Length == 0 ? Loc.Get("game.no_food") : food,
-            Loc.Count("game.bird_cards", player.BirdCards?.Count ?? 0), Loc.Count("status.actions", player.TokensLeft));
+            Loc.Count("game.bird_cards", HandCount(player)), Loc.Count("status.actions", player.P_TokensLeft));
     }
+
+    // The rules model keeps most values twice: the game works with obscured fields (read through the
+    // "P_" properties) and copies them into plain fields only when it saves. Online the other
+    // player's moves are replayed into the obscured fields, so the plain ones lag up to a turn behind
+    // (their hand, whose turn it is, the tray). The mod reads the live values.
+
+    /// <summary>Bird cards in a player's hand.</summary>
+    public static int HandCount(Rules.Player player) => player.P_BirdCards?.Count ?? 0;
+
+    /// <summary>Bonus cards a player holds.</summary>
+    public static int BonusCount(Rules.Player player) => player.P_BonusCards?.Count ?? 0;
+
+    /// <summary>The face-up birds in the tray.</summary>
+    public static List<int> TrayBirds()
+    {
+        var ids = new List<int>();
+        var visible = GameStateCache.State?.BirdsDeckState?.P_Visible;
+        for (int i = 0; visible != null && i < visible.Count; i++)
+        {
+            int id = visible[i].GetDecrypted();
+            if (id > 0)
+                ids.Add(id);
+        }
+
+        return ids;
+    }
+
+    /// <summary>The player whose turn it is.</summary>
+    public static Rules.Player CurrentPlayer(Rules.GameState state) => state.GetPlayer(state.P_CurrentPlayerID);
 
     /// <summary>A player line by line: each habitat with its birds, food, cards and actions left.</summary>
     public static List<string> PlayerLines(Rules.Player player)
@@ -42,8 +71,8 @@ internal static class GameReader
 
         string food = FoodList(player._pf);
         lines.Add(Loc.Get("zone.supply", food.Length == 0 ? Loc.Get("game.no_food") : food));
-        lines.Add($"{Loc.Count("game.bird_cards", player.BirdCards?.Count ?? 0)}, {Loc.Count("game.bonus_cards", player.BonusCards?.Count ?? 0)}");
-        lines.Add(Loc.Count("status.actions", player.TokensLeft));
+        lines.Add($"{Loc.Count("game.bird_cards", HandCount(player))}, {Loc.Count("game.bonus_cards", BonusCount(player))}");
+        lines.Add(Loc.Count("status.actions", player.P_TokensLeft));
         return lines;
     }
 
@@ -137,9 +166,10 @@ internal static class GameReader
 
     public static string PlayerName(Rules.Player player)
     {
-        if (!string.IsNullOrEmpty(player.Username))
-            return player.Username;
-        return Loc.Get("color." + player.Color);
+        string name = player.P_Username;
+        if (!string.IsNullOrEmpty(name))
+            return name;
+        return Loc.Get("color." + player.P_Color);
     }
 
     public static string BirdName(int id)

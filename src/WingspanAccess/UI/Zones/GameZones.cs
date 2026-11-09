@@ -165,15 +165,12 @@ internal sealed class TrayZone : Zone
     }
 
     /// <summary>
-    /// The face-up cards. Cards taken this turn stay in the rules model until the turn ends, but the
-    /// tray on screen no longer shows them, so only cards with a view in the tray count.
+    /// The face-up cards. Only cards with a view in the tray count, so the list matches the screen
+    /// while cards are taken and the tray is refilled.
     /// </summary>
     private static List<int> TrayCards()
     {
-        var ids = new List<int>();
-        var visible = GameStateCache.State?.BirdsDeckState?.Visible;
-        for (int i = 0; visible != null && i < visible.Count; i++)
-            ids.Add(visible[i]);
+        List<int> ids = GameReader.TrayBirds();
         List<int> shown = ids.FindAll(id => TrayView(id) != null);
         return shown.Count > 0 ? shown : ids;
     }
@@ -271,8 +268,8 @@ internal sealed class SupplyZone : Zone
             AddFood(items, food.Nectar, FoodType.Nectar);
         }
 
-        Add(items, Loc.Count("game.bird_cards", player.BirdCards?.Count ?? 0));
-        Add(items, Loc.Count("game.bonus_cards", player.BonusCards?.Count ?? 0));
+        Add(items, Loc.Count("game.bird_cards", GameReader.HandCount(player)));
+        Add(items, Loc.Count("game.bonus_cards", GameReader.BonusCount(player)));
         return items;
     }
 
@@ -499,9 +496,9 @@ internal sealed class StatusZone : Zone
         if (state == null || player == null)
             return lines;
 
-        lines.Add(Loc.Get("status.round", state.RoundsCounter + 1));
-        lines.Add(Loc.Count("status.actions", player.TokensLeft));
-        Rules.Player current = state.GetPlayer(state.CurrentPlayerID);
+        lines.Add(Loc.Get("status.round", state.P_RoundsCounter + 1));
+        lines.Add(Loc.Count("status.actions", player.P_TokensLeft));
+        Rules.Player current = GameReader.CurrentPlayer(state);
         if (current != null)
             lines.Add(Loc.Get("status.current", current.IsLocalPlayer() ? Loc.Get("zone.you") : GameReader.PlayerName(current)));
         lines.AddRange(OnlineTimerWatcher.TimeLines());

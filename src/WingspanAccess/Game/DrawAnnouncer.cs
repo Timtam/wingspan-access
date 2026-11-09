@@ -25,6 +25,7 @@ internal static class DrawAnnouncer
         if (decision == null)
         {
             _decisionId = 0;
+            DraftTick(top);
             return;
         }
 
@@ -79,6 +80,51 @@ internal static class DrawAnnouncer
         ScreenReader.Say(UI.UiText.JoinSentences(parts), interrupt: !first);
     }
 
+    private static int _draftId;
+    private static int _draftTaken = -1;
+
+    /// <summary>
+    /// Bird powers that take cards from the tray (one with a certain nest, after refilling or resetting
+    /// it ...) mark the cards the way drawing does; this says which cards are chosen and what is left.
+    /// </summary>
+    private static void DraftTick(GamepadScreen top)
+    {
+        DraftBirdDraw_Decision draft = top == null ? null : top.TryCast<DraftBirdDraw_Decision>();
+        if (draft == null)
+        {
+            _draftId = 0;
+            return;
+        }
+
+        int taken = draft.cardsTakenCount;
+        if (draft.GetInstanceID() != _draftId)
+        {
+            _draftId = draft.GetInstanceID();
+            _draftTaken = taken;
+            return;
+        }
+
+        if (taken == _draftTaken)
+            return;
+        _draftTaken = taken;
+
+        var names = new List<string>();
+        var chosen = draft.cardsTaken;
+        for (int i = 0; chosen != null && i < chosen.Count; i++)
+        {
+            if (chosen[i] != null)
+                names.Add(GameReader.BirdName((int)chosen[i].ID));
+        }
+
+        int left = draft.amountToChoose - taken;
+        Plugin.Logger.LogInfo($"[Draw] {draft.GetIl2CppType().Name}: amount={draft.amountToChoose} taken={taken} chosen={string.Join(", ", names)}");
+        ScreenReader.Say(UI.UiText.JoinSentences(new[]
+        {
+            names.Count == 0 ? Loc.Get("draw.none_chosen") : Loc.Get("draw.chosen", string.Join(", ", names)),
+            left > 0 ? Loc.Count("draw.left", left) : Loc.Get("draw.confirm"),
+        }));
+    }
+
     /// <summary>Whether a card is marked in the current draw or starting selection decision.</summary>
     public static bool? IsMarked(CardView view)
     {
@@ -89,6 +135,13 @@ internal static class DrawAnnouncer
         DrawBirds_Decision draw = top.TryCast<DrawBirds_Decision>();
         if (draw?._selectedCards != null)
             return Contains(draw._selectedCards, view);
+
+        DraftBirdDraw_Decision draft = top.TryCast<DraftBirdDraw_Decision>();
+        if (draft?.cardsTaken != null)
+        {
+            BirdCardView card = view.TryCast<BirdCardView>();
+            return card != null && ContainsBird(draft.cardsTaken, card);
+        }
 
         PlayerResourcesSetup_Decision setup = top.TryCast<PlayerResourcesSetup_Decision>();
         if (setup?._cardsTaken != null)

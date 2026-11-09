@@ -13,7 +13,8 @@ namespace WingspanAccess.UI.Zones;
 /// 8 status, 9 players, 0 round goals). Inside a zone Left/Right move between its items, Home/End
 /// jump to the first/last one, Up/Down read the item line by line and Escape goes back to the game.
 /// Enter and Space stay with the game: where the current task offers the item, the cursor selects it
-/// in the game as well, so Enter acts on it. A new screen or task ends the zone.
+/// in the game as well, so Enter acts on it. A screen over the zone's task (a yes/no question, the
+/// goal board) pauses the zone until the task is back on top; a new task ends it.
 /// </summary>
 internal static class ZoneNavigator
 {
@@ -43,17 +44,23 @@ internal static class ZoneNavigator
     private static List<string> _lines;
     private static int _screenId;
 
+    /// <summary>Another screen covers the zone's task; the keys belong to that screen meanwhile.</summary>
+    private static bool _paused;
+
+    /// <summary>Frame at which "back in zone" is said after a pause (0: nothing to say).</summary>
+    private static int _resumeFrame;
+
     /// <summary>Whose board 1 to 3 read; null for your own. Chosen in the players zone.</summary>
     public static Rules.Player BoardOwner;
 
-    public static bool IsActive => _zone != null;
+    public static bool IsActive => _zone != null && !_paused;
 
     /// <summary>The bird under the cursor of the open zone, 0 if there is none.</summary>
     public static int CurrentBirdId
     {
         get
         {
-            if (_zone == null || _index < 0)
+            if (!IsActive || _index < 0)
                 return 0;
             List<ZoneItem> items = _zone.Items();
             return _index < items.Count ? items[_index].BirdId : 0;
@@ -68,14 +75,14 @@ internal static class ZoneNavigator
     private static bool _enterBlocked;
 
     /// <summary>Whether Enter belongs to the zone (choosing a player, or nothing to choose) instead of the game.</summary>
-    public static bool ConsumesEnter => _zone != null && (_zone.HandlesEnter || _enterBlocked);
+    public static bool ConsumesEnter => IsActive && (_zone.HandlesEnter || _enterBlocked);
 
     public static void Tick()
     {
         GamepadScreen top = Screens.Top();
         int screenId = top == null ? 0 : top.GetInstanceID();
-        if (_zone != null && screenId != _screenId)
-            Leave(announce: false);
+        if (_zone != null)
+            FollowScreen(screenId);
 
         // Another player's board stays chosen until "You" is chosen in zone 9 or your next turn starts.
         if (BoardOwner != null && (GameStateCache.State == null || (top != null && top.TryCast<NewTurnAnnouncement_Popup>() != null)))
@@ -104,6 +111,14 @@ internal static class ZoneNavigator
             return;
         }
 
+        if (_paused)
+            return;
+        if (_resumeFrame > 0 && Time.frameCount >= _resumeFrame)
+        {
+            _resumeFrame = 0;
+            ScreenReader.Say(Loc.Get("zone.resumed", (int)(_zoneKey - KeyCode.Alpha0)), interrupt: false, history: false);
+        }
+
         _zone.Tick();
         if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
             Leave(announce: true);
@@ -128,9 +143,56 @@ internal static class ZoneNavigator
         }
     }
 
+    /// <summary>
+    /// A screen over the zone's task pauses the zone, and it goes on when the task is back on top
+    /// (after "Skip this power?" while drawing, say). So does a choice the task opens over its own
+    /// controls, like nectar or seed for a die taken in zone 4. When the task is gone, the zone ends.
+    /// </summary>
+    private static void FollowScreen(int screenId)
+    {
+        bool onTop = screenId == _screenId;
+        if (!onTop && !Screens.Contains(_screenId))
+        {
+            Leave(announce: false);
+            return;
+        }
+
+        GameObject choice = onTop ? ChoiceInTask() : null;
+        bool pause = !onTop || choice != null;
+        if (pause && !_paused)
+        {
+            _paused = true;
+            _resumeFrame = 0;
+            Plugin.Logger.LogInfo($"[Zone] {_zone.GetType().Name} paused under {(choice != null ? UiText.PathOf(choice) : Screens.DescribeStack())}");
+            // The game moved its selection into the choice while the zone still held the keys, so
+            // the focus announcement skipped it.
+            if (choice != null)
+                ScreenReader.Say(UiText.Describe(choice), interrupt: false);
+        }
+        else if (!pause && _paused)
+        {
+            _paused = false;
+            // After the task's own announcement, which follows its return to the top.
+            _resumeFrame = Time.frameCount + 10;
+            Plugin.Logger.LogInfo($"[Zone] {_zone.GetType().Name} resumed");
+        }
+    }
+
+    /// <summary>
+    /// The game's selection in a panel the task opened over its own controls (the decisions' panels:
+    /// one of two foods for a die, a food from the supply ...). No zone selects controls there.
+    /// </summary>
+    private static GameObject ChoiceInTask()
+    {
+        GameObject selected = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
+        return selected != null && selected.activeInHierarchy && UiText.PathOf(selected).Contains("/DecisionsPanels/") ? selected : null;
+    }
+
     private static void Enter(KeyCode key, Func<Zone> create, int screenId)
     {
         _screenId = screenId;
+        _paused = false;
+        _resumeFrame = 0;
         if (_zone != null && key == _zoneKey)
         {
             ScreenReader.SayTransient(_zone.Title()); // the same key again repeats the overview
@@ -153,6 +215,8 @@ internal static class ZoneNavigator
         bool hand = _zone is HandZone;
         _zone?.OnLeave();
         _zone = null;
+        _paused = false;
+        _resumeFrame = 0;
         _enterBlocked = false;
         if (!announce)
             return;
