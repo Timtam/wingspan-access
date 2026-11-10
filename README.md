@@ -139,7 +139,9 @@ to the control above. Escape closes the dialog without saving.
 During a game the number keys open zones. Inside a zone the keys are always the same: Left and
 Right move between its items, Home and End jump to the first and last one, Up and Down read the
 selected item line by line (for a bird: name, eggs and cards on it, points, habitats, food cost,
-nest, egg limit, wingspan, power, where it can be played, then what the printed card tells about
+nest, egg limit, wingspan, the direction of its beak and the colour of its power (brown, white,
+pink, teal, yellow or none, as round goals and bonus cards count them), the power, where it can be
+played, then what the printed card tells about
 the bird: Latin name, the continents it lives on and the trivia text), Escape goes back to the
 game. S plays the call of the bird under the cursor and V the game's spoken trivia about it. Pressing
 the zone key again repeats the overview. A question over the task (like "Skip this power?") or a
@@ -147,7 +149,10 @@ choice the task opens (like nectar or seed for a die taken in zone 4) pauses the
 reach it; once it is answered the zone goes on ("Back in zone 5"). A new task closes the zone,
 so the arrow keys work for the game's own choices again. Outside zones, too, Up and Down read the
 selected card line by line where the game's selection is on a card in a single row, like the tray
-while drawing or the hand.
+while drawing or the hand. The starting choice is one row as well: Left and Right go through the
+dealt cards (name, points, habitats and food cost), then the food, then the switch to the bonus
+cards (and back), Home and End jump to the first and the last, Up and Down read the selected card
+line by line, Enter takes or returns it.
 
 | Key | Zone |
 | --- | --- |
@@ -158,7 +163,7 @@ while drawing or the hand.
 | 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card. When a task asks for a card from your hand (to discard or tuck it), the cursor selects it and Enter marks it. While you choose your starting cards, 7 shows the dealt cards instead: Enter chooses a card or puts it back |
 | 8 | Status: round, your actions left, whose turn it is |
 | 9 | Players with their birds, food and cards, you first. Enter on a player makes 1 to 3 read that player's board; Enter on yourself ("You") switches back, and so does the start of your next turn. The Automa (solo opponent) has no habitats: its line gives its face-up and face-down birds and its eggs, Up and Down name its face-up birds |
-| 0 | Round goals with the standings; Up and Down also read the game's explanation of the goal |
+| 0 | Round goals with the standings; Up and Down also read the game's explanation of the goal and, for goals about bird traits (beak, power colour, points, nests, eggs, tucked cards), which of your birds count for the current and the coming rounds |
 
 When the current task lets you choose the item under the cursor (a bird to lay an egg on, a card to
 draw, a die to take), moving the cursor selects it in the game as well, so Enter acts on it.

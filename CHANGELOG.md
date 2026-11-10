@@ -5,8 +5,25 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Added
+
+- Birds say the direction of their beak ("beak pointing left") and the colour of their power
+  ("power: brown" for "when activated", white, pink, teal, yellow, or "no power"), which round goals
+  and bonus cards count but the card only shows in pictures.
+- Round goals about bird traits (beak, power colour, points, nests with eggs, no eggs, tucked
+  cards) say in zone 0 which of your birds count ("Counting for you: Atlantic Puffin"), for the
+  current round and the ones still to come.
+- The starting choice is one row: Left and Right go through the dealt cards, then the food (the
+  game puts them in two rows), then the switch to the bonus cards; Home and End jump to the first
+  and the last, and Up and Down read the selected card line by line. Every item is read alike, with
+  its place in the whole row: a card in short (name, points, habitats and food cost), the food by
+  name, both with "selected" when taken ("Seed, selected, 10 of 11"), and Enter says "selected" or
+  "not selected". The switches between birds with food and the bonus cards are buttons, and the
+  choice tells its keys when it opens.
+
 ### Fixed
 
+- Up and Down in zone 0 no longer also read the goal board when it is open.
 - Settings with previous and next buttons (language, voice-over) read their current value when
   you move to a button ("Language, English, previous, button"), not only after switching.
 

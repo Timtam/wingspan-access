@@ -28,18 +28,22 @@ internal static class CardLineReader
         }
     }
 
-    /// <summary>Reads the next (step 1) or previous (step -1) line; false if the key belongs to the game.</summary>
-    public static bool TryRead(int step)
+    /// <summary>
+    /// Reads the next (step 1) or previous (step -1) line; false if the key belongs to the game. With
+    /// <paramref name="anyCard"/> any selected card is read, also where Up and Down would lead
+    /// somewhere (the starting choice, whose rows Left and Right join, see SetupKeys).
+    /// </summary>
+    public static bool TryRead(int step, bool anyCard = false)
     {
         EventSystem eventSystem = EventSystem.current;
         GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
         GamepadCardSlot slot = selected == null ? null : selected.GetComponent<GamepadCardSlot>();
         // Birds on the board sit in rows the arrows move between.
-        if (slot == null || slot._birdSlot != null)
+        if (slot == null || (!anyCard && slot._birdSlot != null))
             return false;
 
         UnityEngine.UI.Selectable selectable = selected.GetComponent<UnityEngine.UI.Selectable>();
-        if (selectable == null || Leads(selectable.FindSelectableOnUp()) || Leads(selectable.FindSelectableOnDown()))
+        if (selectable == null || (!anyCard && (Leads(selectable.FindSelectableOnUp()) || Leads(selectable.FindSelectableOnDown()))))
             return false;
 
         CardView view = CardDescriber.FindCardView(selected);

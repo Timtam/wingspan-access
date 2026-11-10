@@ -109,6 +109,9 @@ internal static class GoalMatDescriber
 
     private static void ReadLines(GamepadScreen top)
     {
+        // A zone opened over the board (0, the round goals) has the arrow keys.
+        if (Zones.ZoneNavigator.IsActive)
+            return;
         int step = UnityEngine.Input.GetKeyDown(KeyCode.DownArrow) ? 1
             : UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) ? -1
             : 0;

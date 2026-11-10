@@ -27,6 +27,10 @@ internal static class CardDescriber
         if (bird != null && (int)bird.ID <= 0)
             return Loc.Get("card.deck");
 
+        // The dealt cards at the start in short; Up and Down read them line by line (see SetupKeys).
+        if (gamepadSlot != null && Zones.StartCardsZone.Applies())
+            return Zones.StartCardsZone.Summary(view);
+
         string description = DescribeCard(view);
         bool? marked = Game.DrawAnnouncer.IsMarked(view);
         return marked == true ? $"{Loc.Get("card.marked")}, {description}" : description;
@@ -89,6 +93,7 @@ internal static class CardDescriber
         string wingspan = Get(texts, "Wingspan_TMP");
         if (wingspan != null)
             parts.Add(Loc.Get("card.wingspan", wingspan));
+        AddTraits(parts, data);
 
         string header = Get(texts, "BirdPowerHeader_TMP");
         string power = Get(texts, "Description_TMP");
@@ -125,6 +130,7 @@ internal static class CardDescriber
         AddNest(parts, data, bird != null);
         if (data != null)
             parts.Add(Loc.Get("card.wingspan", $"{data.WingspanCM.GetDecrypted()}cm"));
+        AddTraits(parts, data);
         Add(parts, PowerText(id, data));
         return parts;
     }
@@ -225,6 +231,25 @@ internal static class CardDescriber
 
         return null;
     }
+
+    /// <summary>
+    /// What round goals and bonus cards count but the card only shows in pictures: the direction of
+    /// the beak and the colour of the power ("Fähigkeit: braun" for "when activated").
+    /// </summary>
+    private static void AddTraits(List<string> parts, BirdData data)
+    {
+        if (data == null)
+            return;
+        string beak = "beak." + data.BeakDirection;
+        if (Loc.Has(beak))
+            parts.Add(Loc.Get(beak));
+        string power = "power_color." + data.PowerType;
+        if (Loc.Has(power))
+            parts.Add(Loc.Get(power));
+    }
+
+    /// <summary>The bird database's entry for a bird (null if unknown).</summary>
+    public static BirdData DataOf(int id) => Data((BirdName)id);
 
     private static BirdData Data(BirdName id)
     {

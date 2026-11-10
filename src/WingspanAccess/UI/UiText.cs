@@ -22,6 +22,11 @@ internal static class UiText
     {
         try
         {
+            // The starting choice is one list: its cards, food and switch read alike (see SetupKeys).
+            string row = SetupKeys.Describe(target);
+            if (row != null)
+                return row;
+
             string special = SetupDescriber.Describe(target) ?? OverviewDescriber.Describe(target) ?? CardDescriber.Describe(target) ??
                 SaveDescriber.Describe(target) ?? NewsDescriber.Describe(target);
             if (special != null)
@@ -767,6 +772,12 @@ internal static class UiText
         string special = SetupDescriber.ToggleValue(toggle);
         if (special != null)
             return special;
+        // The starting choice switches between birds with food and the bonus cards with toggles that
+        // work like buttons; its food reads "selected" like the cards.
+        if (SetupKeys.IsSwitch(toggle))
+            return Loc.Get("role.button");
+        if (SetupKeys.IsFood(toggle))
+            return Loc.Get(toggle.isOn ? "role.option.on" : "role.option.off");
         if (toggle.group != null)
             return Loc.Get(toggle.isOn ? "role.option.on" : "role.option.off");
         return Loc.Get(toggle.isOn ? "role.toggle.on" : "role.toggle.off");

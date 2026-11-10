@@ -78,7 +78,7 @@ internal static class GameEndDescriber
     /// <summary>Up and Down read the result line by line, Home and End jump.</summary>
     public static void Tick(GamepadScreen top)
     {
-        if (top == null || top.GetIl2CppType().Name != ScreenType)
+        if (top == null || top.GetIl2CppType().Name != ScreenType || Zones.ZoneNavigator.IsActive)
             return;
 
         int step = UnityEngine.Input.GetKeyDown(KeyCode.DownArrow) ? 1

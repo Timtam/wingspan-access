@@ -163,6 +163,66 @@ internal static class GameReader
     /// A round goal's name from the goal board (e.g. "Birds with bowl nests with eggs"), else the goal
     /// tile's tooltip in the HUD; null if neither exists.
     /// </summary>
+    /// <summary>
+    /// For round goals about the traits of birds (beak, power colour, points, nests, eggs, tucked
+    /// cards): which of your birds count now, "Bei dir zählen: ..."; null for other goals. A beak
+    /// pointing both ways counts for either side, a star nest for every kind of nest.
+    /// </summary>
+    public static string GoalBirds(int round)
+    {
+        try
+        {
+            Rules.GameState state = GameStateCache.State;
+            Rules.Goal goal = state?.GoalBoardState?.GetGoalForRound(round - 1);
+            Rules.Player player = GameStateCache.LocalPlayer;
+            // Scored rounds keep their result; the birds of now only matter for this round and later ones.
+            if (goal == null || goal.IsEmpty || player == null || round <= state.P_RoundsCounter)
+                return null;
+
+            System.Func<Rules.Bird, BirdData, bool> counts = goal.GoalName switch
+            {
+                GoalTileName.Beak_pointing_left_31 => (_, d) =>
+                    d.BeakDirection is BeakDirection.Left or BeakDirection.LeftAndRight or BeakDirection.LeftAndStraight,
+                GoalTileName.Beak_pointing_right_32 => (_, d) => d.BeakDirection is BeakDirection.Right or BeakDirection.LeftAndRight,
+                GoalTileName.Brown_Powers_Count_20 => (_, d) => d.PowerType == BirdPowerType.Activated,
+                GoalTileName.Birds_with_White_and_No_Powers_26 => (_, d) => d.PowerType is BirdPowerType.Played or BirdPowerType.None,
+                GoalTileName.Birds_Worh_More_4_Points_18 => (_, d) => d.VictoryPoints.GetDecrypted() > 4,
+                GoalTileName.Birds_worth_less_or_equal_3_points_34 => (_, d) => d.VictoryPoints.GetDecrypted() <= 3,
+                GoalTileName.Birds_with_Tucked_Cards_21 => (b, _) => b.TuckedCardsCount > 0,
+                GoalTileName.Birds_with_No_Eggs_23 => (b, _) => b.Eggs == 0,
+                GoalTileName.Birds_with_Bowl_Nests_with_Egg_8 => (b, d) => b.Eggs > 0 && Nest(d, NestType.Bowl),
+                GoalTileName.Birds_with_Cavity_Nests_with_Egg_9 => (b, d) => b.Eggs > 0 && Nest(d, NestType.Cavity),
+                GoalTileName.Birds_with_Ground_Nests_with_Egg_10 => (b, d) => b.Eggs > 0 && Nest(d, NestType.Ground),
+                GoalTileName.Birds_with_Platform_Nests_with_Egg_11 => (b, d) => b.Eggs > 0 && Nest(d, NestType.Platform),
+                _ => null,
+            };
+            if (counts == null)
+                return null;
+
+            var names = new List<string>();
+            foreach (ActionType habitat in Habitats)
+            {
+                var birds = player.GetAllBirdsInHabitat(habitat);
+                for (int i = 0; birds != null && i < birds.Count; i++)
+                {
+                    Rules.Bird bird = birds[i];
+                    BirdData data = bird == null ? null : CardDescriber.DataOf(bird.ID);
+                    if (data != null && counts(bird, data))
+                        names.Add(BirdName(bird.ID));
+                }
+            }
+
+            return names.Count == 0 ? Loc.Get("goal.counting_none") : Loc.Get("goal.counting", string.Join(", ", names));
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Goal birds for round {round} failed: {e.Message}");
+            return null;
+        }
+    }
+
+    private static bool Nest(BirdData data, NestType nest) => data.NestType == nest || data.NestType == NestType.Wild;
+
     public static string GoalText(int round)
     {
         try

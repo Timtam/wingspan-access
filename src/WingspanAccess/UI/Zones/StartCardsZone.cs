@@ -10,8 +10,8 @@ namespace WingspanAccess.UI.Zones;
 /// <summary>
 /// The cards dealt at the start of a game (the birds, then the bonus cards). While they are chosen,
 /// 7 shows them instead of the still empty hand: Left/Right choose a card, Up/Down read it line by
-/// line, Enter keeps it or puts it back. The game's own rows (cards above, food below) move between
-/// the rows with Up/Down instead.
+/// line, Enter keeps it or puts it back. Outside the zone the cards and the food below them are one
+/// row for the arrow keys as well (SetupKeys).
 /// </summary>
 internal sealed class StartCardsZone : Zone
 {
@@ -24,8 +24,19 @@ internal sealed class StartCardsZone : Zone
     /// <summary>Whether the starting cards are being chosen right now.</summary>
     public static bool Applies() => Decision() != null;
 
+    /// <summary>
+    /// A dealt card in short: a bird's name, points, habitats and food cost, enough to compare (Up and
+    /// Down read the rest), a bonus card's name; then whether it is chosen.
+    /// </summary>
+    public static string Summary(CardView card)
+    {
+        List<string> lines = CardDescriber.CardLines(card);
+        string summary = string.Join(", ", lines.Take(card.TryCast<BaseBirdCardView>() != null ? 4 : 1));
+        return IsTaken(card) ? $"{summary}, {Loc.Get("card.marked")}" : summary;
+    }
+
     /// <summary>The card slots the game lets the player choose now, from left to right.</summary>
-    private static List<(GamepadCardSlot Slot, CardView Card)> Cards()
+    public static List<(GamepadCardSlot Slot, CardView Card)> Cards()
     {
         var cards = new List<(GamepadCardSlot Slot, CardView Card)>();
         foreach (GamepadCardSlot slot in Object.FindObjectsOfType<GamepadCardSlot>())
@@ -42,7 +53,7 @@ internal sealed class StartCardsZone : Zone
     }
 
     /// <summary>Whether the card is among the birds (or is the bonus card) chosen so far.</summary>
-    private static bool IsTaken(CardView card)
+    public static bool IsTaken(CardView card)
     {
         PlayerResourcesSetup_Decision decision = Decision();
         if (decision == null || card == null)
@@ -72,11 +83,7 @@ internal sealed class StartCardsZone : Zone
         {
             BaseBirdCardView bird = card.TryCast<BaseBirdCardView>();
             int birdId = bird == null ? 0 : (int)bird.ID;
-            List<string> lines = CardDescriber.CardLines(card);
-            // A bird: name, points, habitats and food cost, enough to compare; Up/Down read the rest.
-            string summary = string.Join(", ", lines.Take(bird != null ? 4 : 1));
-            if (IsTaken(card))
-                summary = $"{summary}, {Loc.Get("card.marked")}";
+            string summary = Summary(card);
             GamepadCardSlot currentSlot = slot;
             CardView current = card;
             items.Add(new ZoneItem

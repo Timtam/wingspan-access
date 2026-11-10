@@ -808,6 +808,9 @@ internal sealed class GoalsZone : Zone
                         lines.Add(explanation);
                     if (standings != null)
                         lines.Add(standings);
+                    string counting = GameReader.GoalBirds(current);
+                    if (counting != null)
+                        lines.Add(counting);
                     return lines;
                 },
             });

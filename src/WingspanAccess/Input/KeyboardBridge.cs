@@ -64,6 +64,13 @@ internal static class KeyboardBridge
         (KeyCode.DownArrow, 1), (KeyCode.UpArrow, -1), (KeyCode.Home, int.MinValue), (KeyCode.End, int.MaxValue),
     };
 
+    private static readonly (KeyCode Key, int Step)[] SetupMoveKeys =
+    {
+        (KeyCode.RightArrow, 1), (KeyCode.LeftArrow, -1), (KeyCode.Home, int.MinValue), (KeyCode.End, int.MaxValue),
+    };
+
+    private static readonly (KeyCode Key, int Step)[] SetupReadKeys = { (KeyCode.DownArrow, 1), (KeyCode.UpArrow, -1) };
+
     /// <summary>Screens whose controls the game's arrow navigation does not reach (see <see cref="MoveSelection"/>).</summary>
     private static readonly HashSet<string> OwnNavigationScreens = new() { "FriendsList_Screen" };
 
@@ -122,12 +129,6 @@ internal static class KeyboardBridge
 
         GamepadScreen top = UI.Screens.Top();
 
-        // In the starting choice the game leads Up from the food row to the rightmost card; it goes to
-        // the card right above instead.
-        TrackSetupCard(top);
-        if (!UI.Zones.ZoneNavigator.IsActive && UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) && SelectSetupCardAbove(top))
-            Swallowed.Add(KeyCode.UpArrow);
-
         // In the tutorial menu Up and Down go through the chapters in order, Home and End jump.
         if (!UI.Zones.ZoneNavigator.IsActive)
         {
@@ -140,6 +141,26 @@ internal static class KeyboardBridge
 
         // On a card where the game has nowhere to go, Up and Down read the card line by line.
         UI.CardLineReader.Follow();
+
+        // The starting choice is one row: Left and Right go through the cards and then the food, Home
+        // and End jump, Up and Down read the selected card line by line (see SetupKeys).
+        if (!UI.Zones.ZoneNavigator.IsActive)
+        {
+            foreach (var (key, step) in SetupMoveKeys)
+            {
+                if (!Swallowed.Contains(key) && UnityEngine.Input.GetKeyDown(key) && UI.SetupKeys.TryMove(top, step))
+                    Swallowed.Add(key);
+            }
+
+            foreach (var (key, step) in SetupReadKeys)
+            {
+                if (!Swallowed.Contains(key) && UnityEngine.Input.GetKeyDown(key) && UI.SetupKeys.TryRead(top, step))
+                    Swallowed.Add(key);
+            }
+        }
+
+        UI.SetupKeys.Tick(top);
+
         if (!UI.Zones.ZoneNavigator.IsActive && !Swallowed.Contains(KeyCode.UpArrow) && !Swallowed.Contains(KeyCode.DownArrow))
         {
             if (UnityEngine.Input.GetKeyDown(KeyCode.DownArrow) && UI.CardLineReader.TryRead(1))
@@ -323,67 +344,6 @@ internal static class KeyboardBridge
     }
 
     /// <summary>The card last selected in the starting choice, where Up from the food row returns to.</summary>
-    private static GameObject _lastSetupCard;
-
-    /// <summary>
-    /// From a food toggle of the starting choice: selects the card the player came from (else the one
-    /// nearest above). False elsewhere.
-    /// </summary>
-    private static bool SelectSetupCardAbove(GamepadScreen top)
-    {
-        if (top == null || top.TryCast<PlayerResourcesSetup_Decision>() == null)
-            return false;
-        EventSystem eventSystem = EventSystem.current;
-        GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
-        if (selected == null || selected.GetComponent<UnityEngine.UI.Toggle>() == null || selected.GetComponentInParent<GamepadCardSlot>() != null)
-            return false;
-
-        UnityEngine.UI.Selectable last = _lastSetupCard == null ? null : _lastSetupCard.GetComponent<UnityEngine.UI.Selectable>();
-        if (last != null && last.interactable && last.gameObject.activeInHierarchy)
-        {
-            Plugin.Logger.LogInfo($"[Setup] Up from {selected.name}: back to {last.name}");
-            last.Select();
-            return true;
-        }
-
-        Vector3 position = selected.transform.position;
-        UnityEngine.UI.Selectable best = null;
-        float bestDistance = float.MaxValue;
-        foreach (GamepadCardSlot slot in UnityEngine.Object.FindObjectsOfType<GamepadCardSlot>())
-        {
-            UnityEngine.UI.Selectable card = slot.GetSelectable();
-            if (card == null || !card.interactable || !card.gameObject.activeInHierarchy || card.transform.position.y <= position.y)
-                continue;
-            float distance = Mathf.Abs(card.transform.position.x - position.x);
-            if (distance < bestDistance)
-            {
-                best = card;
-                bestDistance = distance;
-            }
-        }
-
-        Plugin.Logger.LogInfo($"[Setup] Up from {selected.name} at {position}: {(best == null ? "no card" : best.name + " at " + best.transform.position)}");
-        if (best == null)
-            return false;
-        best.Select();
-        return true;
-    }
-
-    /// <summary>Remembers the card selected in the starting choice (see <see cref="SelectSetupCardAbove"/>).</summary>
-    private static void TrackSetupCard(GamepadScreen top)
-    {
-        if (top == null || top.TryCast<PlayerResourcesSetup_Decision>() == null)
-        {
-            _lastSetupCard = null;
-            return;
-        }
-
-        EventSystem eventSystem = EventSystem.current;
-        GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
-        if (selected != null && selected.GetComponent<GamepadCardSlot>() != null)
-            _lastSetupCard = selected;
-    }
-
     /// <summary>
     /// Selects the nearest interactive, visible control of the screen in the direction (dx, dy), the
     /// way Unity's automatic navigation would: distance along the direction plus twice the offset
