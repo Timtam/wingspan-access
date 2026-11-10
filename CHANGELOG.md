@@ -5,6 +5,8 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-10
+
 ### Added
 
 - Games against the Automa: the Automa keeps its birds face up and face down instead of in habitats,
