@@ -5,6 +5,8 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-10
+
 ### Fixed
 
 - Powers that play another bird ("Play a second bird in your wetland", "Play another bird") no
