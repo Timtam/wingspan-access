@@ -396,10 +396,14 @@ internal sealed class HandZone : Zone
         return Loc.Get("zone.hand_parts", Loc.Count("game.bird_cards", cards.Count - bonus), Loc.Count("game.bonus_cards", bonus));
     }
 
-    /// <summary>Decisions that take a card from the hand: playing a bird, discarding or tucking cards.</summary>
+    /// <summary>
+    /// Decisions that take a card from the hand: playing a bird, discarding or tucking cards, and the
+    /// powers that play another bird ("Play a second bird in your wetland").
+    /// </summary>
     public static bool IsHandTask(GamepadScreen top) =>
         top != null && (top.TryCast<ChooseAction_Decision>() != null || top.TryCast<DiscardBirds_Decision>() != null ||
-            top.TryCast<TuckCardsFromHand_Decision>() != null || top.GetIl2CppType().Name.Contains("Hand"));
+            top.TryCast<TuckCardsFromHand_Decision>() != null || top.TryCast<BasePlayAnotherBird_Decision>() != null ||
+            top.GetIl2CppType().Name.Contains("Hand"));
 
     public override void OnEnter()
     {
@@ -513,6 +517,15 @@ internal sealed class HandZone : Zone
         for (int i = 0; i < items.Count; i++)
         {
             if (items[i].Tag is CardView card && card.gameObject.GetInstanceID() == selected.GetInstanceID())
+                return i;
+        }
+
+        // Some tasks show the hand's birds in card slots of their own: the slot holding the same bird.
+        BaseBirdCardView shown = CardDescriber.FindCardView(selected)?.TryCast<BaseBirdCardView>();
+        int shownBird = shown == null ? 0 : (int)shown.ID;
+        for (int i = 0; shownBird > 0 && i < items.Count; i++)
+        {
+            if (items[i].BirdId == shownBird)
                 return i;
         }
 

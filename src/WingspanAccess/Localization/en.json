@@ -74,6 +74,7 @@
   "screen.DiscardBirds_Decision": "Discard cards",
   "hint.DiscardBirds_Decision": "Press 7 for your hand, choose the card with Left and Right and press Enter.",
   "hint.TuckCardsFromHand_Decision": "Press 7 for your hand, choose the card with Left and Right and press Enter.",
+  "hint.BasePlayAnotherBird_Decision": "Press 7 for your hand, choose the bird with Left and Right and press Enter. Escape here takes back the bird played before.",
   "news.unread": "new",
   "news.pinned": "pinned",
   "screen.OptionsMenu_Screen": "Settings",

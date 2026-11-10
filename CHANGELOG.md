@@ -5,6 +5,13 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Fixed
+
+- Powers that play another bird ("Play a second bird in your wetland", "Play another bird") no
+  longer trap you: zone 7 selects the bird in your hand there, and Enter plays it. Before, Enter
+  only said "not selectable here", and Escape took back the bird played before, so the same power
+  came up again. The task now says its keys, and that Escape takes back the previous bird.
+
 ## [0.2.0] - 2026-11-09
 
 ### Added

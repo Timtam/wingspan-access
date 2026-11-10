@@ -74,6 +74,7 @@
   "screen.DiscardBirds_Decision": "Karten abwerfen",
   "hint.DiscardBirds_Decision": "Drücke 7 für deine Hand, wähle die Karte mit Links und Rechts und drücke Enter.",
   "hint.TuckCardsFromHand_Decision": "Drücke 7 für deine Hand, wähle die Karte mit Links und Rechts und drücke Enter.",
+  "hint.BasePlayAnotherBird_Decision": "Drücke 7 für deine Hand, wähle den Vogel mit Links und Rechts und drücke Enter. Escape nimmt hier den zuvor gespielten Vogel zurück.",
   "news.unread": "neu",
   "news.pinned": "angeheftet",
   "screen.OptionsMenu_Screen": "Einstellungen",
