@@ -21,6 +21,12 @@ internal static class OpponentWatcher
         public int HandCards;
         public int BonusCards;
         public Dictionary<string, int> Food = new();
+
+        /// <summary>The Automa's own part: birds it took face up, face-down birds, eggs, hoard tokens.</summary>
+        public readonly List<int> AutomaFaceUp = new();
+        public int AutomaFaceDown;
+        public int AutomaEggs;
+        public int AutomaHoard;
     }
 
     private static readonly Dictionary<string, Snapshot> Snapshots = new();
@@ -114,7 +120,8 @@ internal static class OpponentWatcher
         }
 
         // The local player's turn: the summary follows the turn popup a moment later, when the board
-        // shows the other players' moves (online they arrive all at once while the game reloads).
+        // shows the other players' moves (online they arrive all at once while the game reloads). The
+        // Automa's move too: its screen ("Automa's turn") shows it before the game applies it.
         GamepadScreen top = UI.Screens.Top();
         bool turnPopup = top?.TryCast<NewTurnAnnouncement_Popup>() != null;
         if (turnPopup && !_turnPopupShown)
@@ -176,6 +183,7 @@ internal static class OpponentWatcher
         if (!player.IsLocalPlayer() && Snapshots.TryGetValue(playerId, out Snapshot before))
         {
             string summary = Describe(player, before, after);
+            Plugin.Logger.LogInfo($"[Opponent] summary of {playerId}: {summary ?? "none"}");
             if (summary != null)
                 ScreenReader.Say(summary, interrupt: false);
             // What was read counts as known: the summary at the local turn only adds what changed since.
@@ -219,6 +227,17 @@ internal static class OpponentWatcher
             snapshot.Food["food_nectar"] = food.Nectar;
         }
 
+        Rules.AutomaPlayerState automa = GameReader.AutomaState(player);
+        if (automa != null)
+        {
+            var faceUp = automa.FaceUpBirdsList;
+            for (int i = 0; faceUp != null && i < faceUp.Count; i++)
+                snapshot.AutomaFaceUp.Add(faceUp[i]);
+            snapshot.AutomaFaceDown = automa.FaceDownBirdsCount;
+            snapshot.AutomaEggs = automa.CollectedEggs;
+            snapshot.AutomaHoard = automa.HoardTokensCount;
+        }
+
         return snapshot;
     }
 
@@ -233,6 +252,17 @@ internal static class OpponentWatcher
             played++;
             parts.Add(Loc.Get("opponent.played", GameReader.BirdName(pair.Key), Loc.Get("habitat." + pair.Value)));
         }
+
+        // The Automa keeps its birds and eggs apart from any board.
+        foreach (int bird in after.AutomaFaceUp)
+        {
+            if (!before.AutomaFaceUp.Contains(bird))
+                parts.Add(Loc.Get("automa.took", GameReader.BirdName(bird)));
+        }
+
+        AddDelta(parts, after.AutomaFaceDown - before.AutomaFaceDown, "automa.face_down");
+        AddDelta(parts, after.AutomaEggs - before.AutomaEggs, "opponent.eggs");
+        AddDelta(parts, after.AutomaHoard - before.AutomaHoard, "automa.hoard");
 
         AddDelta(parts, after.Eggs - before.Eggs, "opponent.eggs");
         AddDelta(parts, after.Cached - before.Cached, "opponent.cached");

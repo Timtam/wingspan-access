@@ -15,9 +15,37 @@ internal static class GameReader
     private static readonly ActionType[] Habitats = { ActionType.GainFood, ActionType.LayEggs, ActionType.DrawBirds };
 
     /// <summary>One player at a glance: birds per habitat, food, hand size and actions left.</summary>
+    /// <summary>
+    /// The Automa (the solo opponent) plays no birds into habitats: it keeps birds face up and face
+    /// down, counts the eggs it lays and, in some variants, hoard tokens. Null for everyone else.
+    /// </summary>
+    public static Rules.AutomaPlayerState AutomaState(Rules.Player player)
+    {
+        try
+        {
+            return player != null && player.IsAutoma() ? player.AutomaPlayerState : null;
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Automa state failed: {e.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>"Automa: 3 face-up birds, 4 face-down birds, 5 eggs" (and hoard tokens where it has some).</summary>
+    private static string AutomaSummary(string name, Rules.AutomaPlayerState automa)
+    {
+        string text = Loc.Get("automa.summary", name, Loc.Count("automa.face_up", automa.FaceUpBirdsList?.Count ?? 0),
+            Loc.Count("automa.face_down", automa.FaceDownBirdsCount), Loc.Count("automa.eggs", automa.CollectedEggs));
+        return automa.HoardTokensCount > 0 ? $"{text}, {Loc.Count("automa.hoard", automa.HoardTokensCount)}" : text;
+    }
+
     public static string PlayerSummary(Rules.Player player)
     {
         string name = player.IsLocalPlayer() ? Loc.Get("zone.you") : PlayerName(player);
+        Rules.AutomaPlayerState automa = AutomaState(player);
+        if (automa != null)
+            return AutomaSummary(name, automa);
         int forest = player.GetAllBirdsInHabitat(ActionType.GainFood)?.Count ?? 0;
         int grass = player.GetAllBirdsInHabitat(ActionType.LayEggs)?.Count ?? 0;
         int wetland = player.GetAllBirdsInHabitat(ActionType.DrawBirds)?.Count ?? 0;
@@ -59,6 +87,22 @@ internal static class GameReader
     public static List<string> PlayerLines(Rules.Player player)
     {
         var lines = new List<string> { player.IsLocalPlayer() ? Loc.Get("zone.you") : PlayerName(player) };
+        Rules.AutomaPlayerState automa = AutomaState(player);
+        if (automa != null)
+        {
+            var faceUp = automa.FaceUpBirdsList;
+            var names = new List<string>();
+            for (int i = 0; faceUp != null && i < faceUp.Count; i++)
+                names.Add(BirdName(faceUp[i]));
+            lines.Add(names.Count == 0 ? Loc.Get("automa.no_face_up") : Loc.Get("automa.birds_line", automa.FaceUpBirdsPoints, string.Join(", ", names)));
+            lines.Add(Loc.Count("automa.face_down", automa.FaceDownBirdsCount));
+            lines.Add(Loc.Count("automa.eggs", automa.CollectedEggs));
+            if (automa.HoardTokensCount > 0)
+                lines.Add(Loc.Count("automa.hoard", automa.HoardTokensCount));
+            lines.Add(Loc.Count("status.actions", player.P_TokensLeft));
+            return lines;
+        }
+
         foreach (ActionType habitat in Habitats)
         {
             var birds = player.GetAllBirdsInHabitat(habitat);
@@ -169,6 +213,8 @@ internal static class GameReader
         string name = player.P_Username;
         if (!string.IsNullOrEmpty(name))
             return name;
+        if (AutomaState(player) != null)
+            return Loc.Get("game.automa");
         return Loc.Get("color." + player.P_Color);
     }
 

@@ -5,6 +5,20 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Added
+
+- Games against the Automa: the Automa keeps its birds face up and face down instead of in habitats,
+  so zone 9 now gives its face-up and face-down birds and its eggs ("Automa: 2 face-up birds,
+  3 face-down birds, 4 eggs"); Up and Down name its face-up birds with their points, and Enter on it
+  explains that it has no board. After its turn the summary says what it did ("Automa: 1 egg
+  laid", "takes Blue Jay face up", "1 more face-down bird"). It is called "Automa" instead of its
+  colour, and its turn screen is named and says that Enter continues.
+
+### Fixed
+
+- A habitat's yield in the wetland says that the tray is refilled, not the birdfeeder rerolled.
+- Decorative wingspan icons on bonus cards are no longer read as "2 [wingspan_]".
+
 ## [0.2.1] - 2026-11-10
 
 ### Fixed

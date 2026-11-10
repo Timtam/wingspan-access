@@ -758,6 +758,14 @@ internal sealed class PlayersZone : Zone
     {
         if (item?.Tag is not Rules.Player player)
             return;
+
+        // The Automa has no board with habitats; its birds and eggs are in its lines (Up and Down).
+        if (GameReader.AutomaState(player) != null)
+        {
+            Speech.ScreenReader.SayTransient(Loc.Get("automa.no_board"));
+            return;
+        }
+
         ZoneNavigator.BoardOwner = player.IsLocalPlayer() ? null : player;
         Speech.ScreenReader.SayTransient(ZoneNavigator.BoardOwner == null
             ? Loc.Get("zone.board_own")

@@ -157,7 +157,7 @@ while drawing or the hand.
 | 6 | Your supply: food and the number of cards in your hand |
 | 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card. When a task asks for a card from your hand (to discard or tuck it), the cursor selects it and Enter marks it. While you choose your starting cards, 7 shows the dealt cards instead: Enter chooses a card or puts it back |
 | 8 | Status: round, your actions left, whose turn it is |
-| 9 | Players with their birds, food and cards, you first. Enter on a player makes 1 to 3 read that player's board; Enter on yourself ("You") switches back, and so does the start of your next turn |
+| 9 | Players with their birds, food and cards, you first. Enter on a player makes 1 to 3 read that player's board; Enter on yourself ("You") switches back, and so does the start of your next turn. The Automa (solo opponent) has no habitats: its line gives its face-up and face-down birds and its eggs, Up and Down name its face-up birds |
 | 0 | Round goals with the standings; Up and Down also read the game's explanation of the goal |
 
 When the current task lets you choose the item under the cursor (a bird to lay an egg on, a card to

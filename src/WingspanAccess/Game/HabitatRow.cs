@@ -115,7 +115,7 @@ internal sealed class HabitatRow
         }
 
         if (ability.CanDiscardFoodToReRoll)
-            parts.Add(Loc.Get("yield.reroll"));
+            parts.Add(Loc.Has("yield.reroll." + habitat) ? Loc.Get("yield.reroll." + habitat) : Loc.Get("yield.reroll"));
         return string.Join(", ", parts);
     }
 

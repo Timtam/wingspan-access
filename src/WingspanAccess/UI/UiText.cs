@@ -378,7 +378,12 @@ internal static class UiText
         text = text.Replace("\u200B", string.Empty);
         // Repeated icons count ("[egg][egg]" reads "2 eggs"); icon names are marked so that an icon
         // repeating the words right before it ("play a bird [play a bird]") can be dropped.
-        text = RepeatedSprite.Replace(text, match => $" {SpriteTag.Matches(match.Value).Count} {SpritePlural(match.Groups[1].Value)} ");
+        // Icons without a spoken name (decoration around a word) are dropped with their count.
+        text = RepeatedSprite.Replace(text, match =>
+        {
+            string name = SpritePlural(match.Groups[1].Value);
+            return name.Length == 0 ? " " : $" {SpriteTag.Matches(match.Value).Count} {name} ";
+        });
         // "2 [card]" and "alle [card]" read "2 cards", "all cards".
         text = CountedSprite.Replace(text, match => $"{match.Groups[1].Value.TrimEnd()} {SpritePlural(match.Groups[2].Value)} ");
         text = SpriteTag.Replace(text, match => $" {IconStart}{SpriteName(match.Groups[1].Value)}{IconPlural}{SpritePlural(match.Groups[1].Value)}{IconEnd} ");
