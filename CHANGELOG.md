@@ -5,6 +5,8 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-10
+
 ### Added
 
 - Birds say the direction of their beak ("beak pointing left") and the colour of their power
