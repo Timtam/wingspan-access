@@ -40,10 +40,12 @@ internal static class UiText
         if (slider != null)
             texts.RemoveAll(text => Numeric.IsMatch(text));
 
-        // A translated name for the object itself wins over whatever texts sit inside it.
+        // A translated name for the object itself wins over whatever texts sit inside it. Without texts
+        // inside, it is named like the unlabeled controls below, with the texts next to it ("Sprache,
+        // Deutsch, previous": the setting and its value beside the arrow buttons).
         string ownNameKey = "name." + target.name;
         string label;
-        if (Loc.Has(ownNameKey))
+        if (texts.Count > 0 && Loc.Has(ownNameKey))
         {
             label = Loc.Get(ownNameKey);
         }

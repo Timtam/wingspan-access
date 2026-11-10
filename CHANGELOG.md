@@ -5,6 +5,11 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Fixed
+
+- Settings with previous and next buttons (language, voice-over) read their current value when
+  you move to a button ("Language, English, previous, button"), not only after switching.
+
 ## [0.2.2] - 2026-11-10
 
 ### Added
