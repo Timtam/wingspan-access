@@ -8,7 +8,8 @@ namespace WingspanAccessInstaller;
 
 /// <summary>
 /// Command line options. Without any, the installer shows its window. The mod starts it with
-/// "--update --restart --game &lt;folder&gt;", the uninstall entry with "--uninstall --game &lt;folder&gt;".
+/// "--update --restart --game &lt;folder&gt;" (F5 twice) or "--report --game &lt;folder&gt;" (F4 twice), the
+/// uninstall entry with "--uninstall --game &lt;folder&gt;".
 /// "--silent" runs without any window (for scripts and tests).
 /// </summary>
 internal sealed class Options
@@ -17,6 +18,7 @@ internal sealed class Options
         "WingspanAccessInstaller [--game <folder>] [--zip <package>] [--lang de|en]\n" +
         "  --update [--restart]   update while or after the game runs (started by the mod)\n" +
         "  --uninstall            remove the mod, asks about BepInEx\n" +
+        "  --report               the window to report a problem (the mod starts it with F4 twice)\n" +
         "  --silent --install | --uninstall | --detect | --check\n" +
         "     [--remove-bepinex] [--replace-bepinex] [--no-registry] [--repo <owner/name>]";
 
@@ -29,6 +31,7 @@ internal sealed class Options
     public bool Check { get; private set; }
     public bool Update { get; private set; }
     public bool Restart { get; private set; }
+    public bool Report { get; private set; }
     public bool Relaunched { get; private set; }
     public bool NoSelfUpdate { get; private set; }
     public bool RemoveBepInEx { get; private set; }
@@ -58,6 +61,7 @@ internal sealed class Options
                 case "--check": options.Check = true; break;
                 case "--update": options.Update = true; break;
                 case "--restart": options.Restart = true; break;
+                case "--report": options.Report = true; break;
                 case "--relaunched": options.Relaunched = true; break;
                 case "--no-self-update": options.NoSelfUpdate = true; break;
                 case "--remove-bepinex": options.RemoveBepInEx = true; break;
@@ -100,6 +104,7 @@ internal sealed class Options
         Flag(Check, "--check");
         Flag(Update, "--update");
         Flag(Restart, "--restart");
+        Flag(Report, "--report");
         Flag(NoSelfUpdate, "--no-self-update");
         Flag(RemoveBepInEx, "--remove-bepinex");
         Flag(ReplaceBepInEx, "--replace-bepinex");

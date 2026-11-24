@@ -46,7 +46,8 @@ internal static class Program
         if (!options.Relaunched && TryRelaunchFromTemp(options))
             return 0;
 
-        Log.Start(args);
+        // A report attaches the log of the last installation or update, so it adds to it.
+        Log.Start(args, append: options.Report);
         foreach (string unknown in options.Unknown)
             Log.Detail($"Ignoring unknown argument {unknown}");
 
@@ -57,6 +58,8 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
         if (options.Uninstall)
             return UninstallDialogs.Run(options);
+        if (options.Report)
+            return ReportForm.Run(options);
 
         Application.Run(new MainForm(options));
         return 0;

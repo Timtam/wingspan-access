@@ -5,6 +5,46 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+### Added
+
+- With your hand open to play a bird, 1, 2 and 3 first only turn the view to that habitat and say
+  what the selected bird costs there in eggs and what it unlocks, and whether the bird cannot live
+  there. The cursor stays on the card, so "7, choose the bird, 2, Enter" plays it in the grassland.
+  Pressing the same key again moves into the habitat as before; after choosing another bird, the
+  key first turns the view again for that bird.
+- Bird questions: single keys answer one question about the bird under the zone cursor or the
+  selected card, also in the bird atlas and while you pay for a bird. L: its habitats, and where it
+  lives on a board ("lives in your wetland, place 1") or where you can play it from your hand;
+  F: its food cost; E: its eggs (on a board with its limit, cached food and tucked cards); N: its
+  nest; P: its power with its colour; W: its wingspan; B: the direction of its beak. F1 lists them.
+- Up and Down read a bird on your board line by line where the game offers the birds of one habitat,
+  like activating round-end powers; while laying eggs they still move between the habitats.
+- Report a problem: F4 twice in the game opens a window beside it, which keeps running (also the
+  installer's *Report a problem* button and the Start menu entry *Wingspan Access - Report a
+  problem*). Describe what happened, add an e-mail address for questions if you like, and choose
+  the logs to attach: BepInEx's log of the current session, the mod's logs of the sessions before,
+  Unity's logs, the installer's log and, only when you check them, the game's crash dumps. Your
+  Windows user name, computer name and Steam ID are replaced in the logs, and the report goes by
+  e-mail to the developer through the form service Static Forms. The mod now keeps its logs of the
+  last three game sessions in `BepInEx\plugins\WingspanAccess\logs`, so a crashed session's log
+  is still there after the game was started again.
+
+### Fixed
+
+- Trading food with a power such as the Green Heron's ("trade 1 food for any other type") could
+  not be done: every food toggle said only "Receive, Give". Each now says its side and its food
+  ("Give: rodent, 2 available, not selected"), the screen is called "Trade food", and it says how
+  to finish: Enter on one food to give and one to receive, Space trades, Escape skips the power.
+  The food toggles of other tasks, like caching food on birds, are named the same way.
+- Birds whose food you cannot pay were "playable in" their habitats; they now say "not playable
+  now, not enough food", and the first press of 1 to 3 in the hand says they cannot be played there.
+- Flightless birds read "wingspan: flightless, counts as any" instead of "[asterisk]".
+- While drawing birds with the Oceania player mat, Up and Down read the tray cards line by line
+  again: the mat's trade options above the tray took the keys and were read as "frame". They are
+  now called "trade options, also with X", and the hint says that X uses your wetland's trade.
+- The Automa's hoard tokens are read by name ("I gained 2 hoard tokens") instead of
+  "[automa_hoard]".
+
 ## [0.2.3] - 2026-11-10
 
 ### Added

@@ -8,7 +8,8 @@ Files in this folder
 - WingspanAccess.dll: the mod.
 - prism.dll: speech and braille output through your screen reader (Prism).
 - WingspanAccessInstaller.exe: installs, updates and removes the mod. The mod starts it when you
-  press F5 twice to install an update.
+  press F5 twice to install an update, and when you press F4 twice to report a problem.
+- logs: the mod's logs of the last three game sessions, for problem reports (made by the mod).
 - LICENSE.txt: the license of Wingspan Access, the GNU General Public License.
 - THIRD-PARTY-NOTICES.txt and the other LICENSE files: licenses of the software that comes with
   the mod.
@@ -23,6 +24,13 @@ hear "Wingspan Access loaded. F1 for help."
 Updates
 The mod tells you when a new version is out. Press F5 twice to install it: the game closes, the
 installer updates the mod and starts the game again.
+
+Reporting a problem
+Press F4 twice in the game, or choose "Report a problem" in the installer or "Wingspan Access -
+Report a problem" in the Start menu. Describe what happened and choose the logs to attach; your
+Windows user name, computer name and Steam ID are replaced in them. Crash dumps only go along
+when you check them. The report goes by e-mail to the developer through the form service Static
+Forms; nothing is sent unless you press Send.
 
 Uninstalling
 Use "Wingspan Access" in Installed apps, or start WingspanAccessInstaller.exe and choose Uninstall.

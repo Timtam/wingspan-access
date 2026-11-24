@@ -20,6 +20,7 @@ internal static class ScreenReaderCommands
             MessageHistory.Tick();
             Game.UndoKey.Tick(Screens.Top());
             Game.BirdSounds.Tick();
+            BirdInfoKeys.Tick();
             ConfirmPopupKeys.Tick(Screens.Top());
         }
 

@@ -278,7 +278,9 @@ The console ports left a complete gamepad UI in the PC build. That is the main h
   `BaseGainFoodFromBirdFeeder_Decision.foodChosen.List[i].Token` is the food actually taken and
   `amountToChoose` the food still allowed (it drops after a reroll of an empty feeder).
 - Playing a bird: `Rulebook.CanPlay(data, player, null, new Nullable<ActionType>(), 0)` gives the
-  habitats where the rules allow the bird now (food, eggs, space). The cost panel shows the payment
+  habitats where the bird fits now (`CanPlayIn{Forest,Grass,Wetlands}`: habitat, eggs, space); only
+  `Can` also covers the food (checked 2026-11-16: Kakapo with 1 invertebrate had `CanPlayInForest`
+  but the game refused it). `Rulebook.CanPayFoodForBird(data, player).Can` is the food alone. The cost panel shows the payment
   in `FoodAboutToPay.FoodButtons` (active buttons) of `ChoosePayment_Panel` (proposal) or
   `ChangePayment_Panel` (manual choice); `BirdPayment.Food` is only filled after confirming. The egg
   cost comes from `EggsPaymentStateController.GetEggsCost(_playerController, _currentData)`.
@@ -446,3 +448,17 @@ Escape leaves. Enter, Space and Tab stay with the game. The key table is at the 
   loaded on the wall). The filters (`AtlasFiltersGamepadScreen`, X) are ordinary toggles under
   `AtlasModule/SortCanvas/FilterToggles/<row>`; the sort toggles named `VP` sort by points
   (`_currentSortType`), the game's initial check mark can sit on another one.
+
+### Food trades and bird questions (2026-11-16)
+
+- `TradeFoodFromSupply_Decision` (the Green Heron's "trade 1 food for any other type") has two
+  `FoodTogglePanel`s, `Give` (object `FoodPanelGive`, toggles `Give<Food>Toggle`) and `Receive`
+  (`FoodPanelReceive`, `Take<Food>Toggle`). The toggles only show an icon; each panel's header text
+  ("Geben", "Erhalten") sits in a child named `...Header...`. `FoodTogglePanel` has one `Toggle` and
+  one amount text per food (`Seed`/`SeedText` ..., plus `CachedSeed184/185` for seed cached on those
+  birds) and `GetSelectedFoodType()`. Space confirms (`CheckIfRequirementsAreFulfilled`,
+  `CommitChanges`), Back shows `ShowSkipWarning`. `CacheFoodOnBirds_Decision._foodTogglesPanel` is
+  another `FoodTogglePanel`. Not seen in a live game yet (a player's log, 2026-11-16).
+- `BirdData.IsFlightless`: these birds print an asterisk (`FontSpriteAtlasAddOn` sprite `asterisk`)
+  as wingspan, which counts as any wingspan ("gilt als Joker", Oceania tutorial chapter 3).
+- `Rules.Player.P_BirdCards` is a `List<ObscuredInt>` of the bird ids in the hand.

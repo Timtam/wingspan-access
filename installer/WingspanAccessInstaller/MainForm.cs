@@ -35,6 +35,8 @@ internal sealed class MainForm : Form
     private readonly Button _installButton = NewButton();
     private readonly Button _uninstallButton = NewButton();
     private readonly Button _closeGameButton = NewButton();
+    private readonly Button _reportButton = NewButton();
+    private readonly Label _reportLabel = NewLabel();
     private readonly Button _closeButton = NewButton();
 
     private string _gameDir;
@@ -56,6 +58,7 @@ internal sealed class MainForm : Form
         _installButton.Click += async (_, _) => await InstallAsync();
         _uninstallButton.Click += async (_, _) => await UninstallAsync();
         _closeGameButton.Click += (_, _) => GameInstall.CloseGame(_gameDir);
+        _reportButton.Click += (_, _) => OpenReport();
         _closeButton.Click += (_, _) => Close();
     }
 
@@ -119,6 +122,9 @@ internal sealed class MainForm : Form
         _installButton.Text = Strings.Get("install");
         _uninstallButton.Text = Strings.Get("uninstall");
         _closeGameButton.Text = Strings.Get("close_game");
+        _reportButton.Text = Strings.Get("report_button");
+        // Without a form key the button stays off; this text says why (a disabled button is skipped by Tab).
+        _reportLabel.Text = Strings.Get("report_unavailable");
         _closeButton.Text = Strings.Get(update ? "cancel" : "close");
 
         _introLabel.Visible = !update;
@@ -127,6 +133,9 @@ internal sealed class MainForm : Form
         _installButton.Visible = !update;
         _uninstallButton.Visible = !update;
         _closeGameButton.Visible = update;
+        _reportButton.Visible = !update;
+        _reportButton.Enabled = ReportKey.Available;
+        _reportLabel.Visible = !update && !ReportKey.Available;
         _closeGameButton.Enabled = false;
 
         // The label right before its text box, so screen readers do not read the name twice.
@@ -148,11 +157,11 @@ internal sealed class MainForm : Form
         gamePanel.Controls.Add(_browseButton, 1, 1);
 
         var buttons = new FlowLayoutPanel { AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Right, Margin = new Padding(0, 6, 0, 0) };
-        buttons.Controls.AddRange(new Control[] { _installButton, _uninstallButton, _closeGameButton, _closeButton });
+        buttons.Controls.AddRange(new Control[] { _installButton, _uninstallButton, _closeGameButton, _reportButton, _closeButton });
 
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, Padding = new Padding(10) };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        Control[] rows = { _introLabel, gamePanel, _installedLabel, _latestLabel, _bepinexLabel, _statusLabel, _progressBar, _logLabel, _logBox, _removeBepInExBox, buttons };
+        Control[] rows = { _introLabel, gamePanel, _installedLabel, _latestLabel, _bepinexLabel, _statusLabel, _progressBar, _logLabel, _logBox, _removeBepInExBox, _reportLabel, buttons };
         foreach (Control row in rows)
         {
             layout.RowStyles.Add(row == _logBox ? new RowStyle(SizeType.Percent, 100) : new RowStyle(SizeType.AutoSize));
@@ -185,6 +194,7 @@ internal sealed class MainForm : Form
         _installButton.Enabled = found && !_busy;
         _uninstallButton.Enabled = found && !_busy && (installed != null || bepinex != null);
         _removeBepInExBox.Enabled = !_busy && bepinex != null;
+        _reportButton.Enabled = !_busy && ReportKey.Available;
         _browseButton.Enabled = !_busy;
     }
 
@@ -399,6 +409,15 @@ internal sealed class MainForm : Form
         {
             _installing = false;
         }
+    }
+
+    private void OpenReport()
+    {
+        if (_busy || !ReportKey.Available)
+            return;
+        using var report = new ReportForm(_gameDir);
+        report.ShowDialog(this);
+        _reportButton.Focus();
     }
 
     private void ChooseGameFolder()

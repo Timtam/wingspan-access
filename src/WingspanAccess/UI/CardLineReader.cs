@@ -6,9 +6,10 @@ using WingspanAccess.Speech;
 namespace WingspanAccess.UI;
 
 /// <summary>
-/// Up and Down on a card the game has selected in a single row (the tray while drawing, the hand)
-/// read it line by line, the way the zones do. Where Up or Down lead somewhere (from the starting
-/// cards to the food, between the habitats of the board), both stay with the game.
+/// Up and Down on a card the game has selected in a single row (the tray while drawing, the hand,
+/// the birds of one habitat while their powers are activated) read it line by line, the way the
+/// zones do. Where Up or Down lead to another row of cards (from the starting cards to the food,
+/// between the habitats of the board while laying eggs), both stay with the game.
 /// </summary>
 internal static class CardLineReader
 {
@@ -38,8 +39,7 @@ internal static class CardLineReader
         EventSystem eventSystem = EventSystem.current;
         GameObject selected = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
         GamepadCardSlot slot = selected == null ? null : selected.GetComponent<GamepadCardSlot>();
-        // Birds on the board sit in rows the arrows move between.
-        if (slot == null || (!anyCard && slot._birdSlot != null))
+        if (slot == null)
             return false;
 
         UnityEngine.UI.Selectable selectable = selected.GetComponent<UnityEngine.UI.Selectable>();
@@ -66,6 +66,10 @@ internal static class CardLineReader
         return true;
     }
 
+    /// <summary>
+    /// Whether Up or Down lead to another row of cards (the habitats of the board); a button next to
+    /// the row (the Oceania mat's options above the tray) does not take the keys away from reading.
+    /// </summary>
     private static bool Leads(UnityEngine.UI.Selectable target) =>
-        target != null && target.IsInteractable() && target.gameObject.activeInHierarchy;
+        target != null && target.IsInteractable() && target.gameObject.activeInHierarchy && target.GetComponent<GamepadCardSlot>() != null;
 }

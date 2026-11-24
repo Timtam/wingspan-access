@@ -12,9 +12,14 @@
     <Company>Wingspan Access</Company>
     <Product>Wingspan Access</Product>
     <Copyright>Copyright (C) 2026 Toni Barth, GNU GPL 3.0 or later</Copyright>
+    <!-- Problem reports need the Static Forms key, which the installer gets from WA_STATICFORMS_KEY
+         (see WingspanAccessInstaller.csproj). The mod only learns whether there is one, so F4 can
+         say when a build has no reports. -->
+    <ProblemReports>false</ProblemReports>
+    <ProblemReports Condition="'$(WA_STATICFORMS_KEY)' != ''">true</ProblemReports>
   </PropertyGroup>
 
-  <!-- BuildInfo.Version and BuildInfo.RepositorySlug as constants for both projects. -->
+  <!-- BuildInfo.Version, BuildInfo.RepositorySlug and BuildInfo.ProblemReports as constants for both projects. -->
   <Target Name="GenerateBuildInfo" BeforeTargets="BeforeCompile;CoreCompile" Condition="'$(BuildInfoNamespace)' != ''">
     <PropertyGroup>
       <BuildInfoFile>$(IntermediateOutputPath)BuildInfo.g.cs</BuildInfoFile>
@@ -26,6 +31,8 @@
       <BuildInfoLine Include="{" />
       <BuildInfoLine Include="    public const string Version = &quot;$(ModVersion)&quot;%3B" />
       <BuildInfoLine Include="    public const string RepositorySlug = &quot;$(RepositorySlug)&quot;%3B" />
+      <!-- Not const: code that depends on it would be unreachable in one of the two builds. -->
+      <BuildInfoLine Include="    public static readonly bool ProblemReports = $(ProblemReports)%3B" />
       <BuildInfoLine Include="}" />
     </ItemGroup>
     <MakeDir Directories="$(IntermediateOutputPath)" />

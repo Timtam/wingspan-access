@@ -98,6 +98,9 @@ internal static class ZoneNavigator
             {
                 if (!UnityEngine.Input.GetKeyDown(key))
                     continue;
+                // With the hand open to play a bird, 1 to 3 first only turn the view (see HandZone.PreviewHabitat).
+                if (InGame(top) && !_paused && _zone is HandZone hand && hand.PreviewHabitat(key))
+                    return;
                 if (InGame(top))
                     Enter(key, create, screenId);
                 else if (top != null && top.TryCast<HabitatsOverview_Screen>() != null)

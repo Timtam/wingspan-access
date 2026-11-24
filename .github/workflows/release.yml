@@ -63,10 +63,14 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: ./tools/release-prepare.ps1 -Bump $env:BUMP -Version $env:VERSION -NotesFile dist/release-notes.md
 
+      # The Static Forms key for problem reports goes into the installer at build time, from the
+      # repository secret STATICFORMS_KEY (Settings, Secrets and variables, Actions). Without the
+      # secret the release has no report function (F4 says so, the installer's button is off).
       - name: Build and package
         shell: pwsh
         env:
           REPOSITORY: ${{ github.repository }}
+          WA_STATICFORMS_KEY: ${{ secrets.STATICFORMS_KEY }}
         run: ./tools/build-release.ps1 -RepositorySlug $env:REPOSITORY
 
       - name: Commit and tag

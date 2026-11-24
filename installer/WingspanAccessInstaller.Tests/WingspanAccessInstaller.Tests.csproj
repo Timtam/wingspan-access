@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests of the installer's report parts (ALTCHA solver, Static Forms client against a local
+       stand-in server, cleaning, packing, attachments) and of its options. A plain console
+       program without test frameworks: build it and run bin\Release\net48\WingspanAccessInstaller.Tests.exe
+       (tools\build-release.ps1 does); it prints each test and exits with 1 if one fails. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>WingspanAccessInstaller.Tests</AssemblyName>
+    <RootNamespace>WingspanAccessInstaller.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
+    <ProjectReference Include="..\WingspanAccessInstaller\WingspanAccessInstaller.csproj" />
+  </ItemGroup>
+
+</Project>

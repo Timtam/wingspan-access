@@ -90,8 +90,11 @@ internal static class CardDescriber
             parts.Add(Loc.Get("card.food", food));
         AddNest(parts, data, boardState != null);
 
+        // Flightless birds show an asterisk instead of a wingspan.
         string wingspan = Get(texts, "Wingspan_TMP");
-        if (wingspan != null)
+        if (data != null && data.IsFlightless)
+            parts.Add(Loc.Get("card.wingspan_flightless"));
+        else if (wingspan != null)
             parts.Add(Loc.Get("card.wingspan", wingspan));
         AddTraits(parts, data);
 
@@ -128,8 +131,7 @@ internal static class CardDescriber
         }
 
         AddNest(parts, data, bird != null);
-        if (data != null)
-            parts.Add(Loc.Get("card.wingspan", $"{data.WingspanCM.GetDecrypted()}cm"));
+        Add(parts, Wingspan(data));
         AddTraits(parts, data);
         Add(parts, PowerText(id, data));
         return parts;
@@ -139,7 +141,7 @@ internal static class CardDescriber
     /// The power as the card prints it ("BEI AKTIVIERUNG: Erhalte 1 Samen ..."), from the game's texts:
     /// the header after the bird's power type, the text after its id (like the name and the trivia).
     /// </summary>
-    private static string PowerText(int birdId, BirdData data)
+    public static string PowerText(int birdId, BirdData data)
     {
         string nameTerm = TextLocalizationHelper.GetBirdCardNameTerm(birdId);
         if (string.IsNullOrEmpty(nameTerm) || !nameTerm.Contains("/Names/"))
@@ -251,6 +253,16 @@ internal static class CardDescriber
     /// <summary>The bird database's entry for a bird (null if unknown).</summary>
     public static BirdData DataOf(int id) => Data((BirdName)id);
 
+    /// <summary>"Spannweite 41cm"; flightless birds show an asterisk, which counts as any wingspan.</summary>
+    public static string Wingspan(BirdData data)
+    {
+        if (data == null)
+            return null;
+        return data.IsFlightless
+            ? Loc.Get("card.wingspan_flightless")
+            : Loc.Get("card.wingspan", $"{data.WingspanCM.GetDecrypted()}cm");
+    }
+
     private static BirdData Data(BirdName id)
     {
         try
@@ -264,7 +276,7 @@ internal static class CardDescriber
         }
     }
 
-    private static string Habitats(BirdData data)
+    public static string Habitats(BirdData data)
     {
         if (data == null)
             return null;
@@ -290,7 +302,32 @@ internal static class CardDescriber
         parts.Add(onBoard ? nest : $"{nest}, {Loc.Count("card.eggs", data.EggLimit.GetDecrypted())}");
     }
 
-    private static string Playability(BirdData data)
+    /// <summary>Whether the rules let you play the bird in the habitat now (null if unknown).</summary>
+    public static bool? CanPlayIn(BirdData data, ActionType habitat)
+    {
+        Rules.Player player = Game.GameStateCache.LocalPlayer;
+        if (player == null || data == null)
+            return null;
+        try
+        {
+            // The habitat flags only say where the bird fits; "Can" also covers the food.
+            CanPlayReturn result = Rulebook.CanPlay(data, player, null, new Il2CppSystem.Nullable<ActionType>(), 0);
+            return habitat switch
+            {
+                ActionType.GainFood => result.Can && result.CanPlayInForest,
+                ActionType.LayEggs => result.Can && result.CanPlayInGrass,
+                ActionType.DrawBirds => result.Can && result.CanPlayInWetlands,
+                _ => null,
+            };
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Rulebook.CanPlay failed: {e.Message}");
+            return null;
+        }
+    }
+
+    public static string Playability(BirdData data)
     {
         Rules.Player player = Game.GameStateCache.LocalPlayer;
         if (player == null)
@@ -314,7 +351,26 @@ internal static class CardDescriber
             habitats.Add(Loc.Get("icon.habitat_grassland"));
         if (result.CanPlayInWetlands)
             habitats.Add(Loc.Get("icon.habitat_wetland"));
-        return habitats.Count == 0 ? Loc.Get("card.not_playable_now") : Loc.Get("card.playable_in", string.Join(", ", habitats));
+        if (habitats.Count == 0)
+            return Loc.Get("card.not_playable_now");
+
+        // The habitat flags only say where the bird fits; "Can" also covers the food to pay for it.
+        if (!result.Can)
+            return Loc.Get(CanPayFood(data, player) == false ? "card.not_playable_food" : "card.not_playable_now");
+        return Loc.Get("card.playable_in", string.Join(", ", habitats));
+    }
+
+    private static bool? CanPayFood(BirdData data, Rules.Player player)
+    {
+        try
+        {
+            return Rulebook.CanPayFoodForBird(data, player).Can;
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Logger.LogWarning($"Rulebook.CanPayFoodForBird failed: {e.Message}");
+            return null;
+        }
     }
 
     /// <summary>

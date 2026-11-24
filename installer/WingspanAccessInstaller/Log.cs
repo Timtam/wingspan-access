@@ -6,17 +6,21 @@ namespace WingspanAccessInstaller;
 /// <summary>Writes every step to %TEMP%\WingspanAccessInstaller.log and tells the window about it.</summary>
 internal static class Log
 {
-    public static string FilePath { get; } = Path.Combine(Path.GetTempPath(), "WingspanAccessInstaller.log");
+    public static string FilePath { get; internal set; } = Path.Combine(Path.GetTempPath(), "WingspanAccessInstaller.log");
 
     /// <summary>Progress lines meant for the user.</summary>
     public static event Action<string> Progress;
 
-    public static void Start(string[] args)
+    public static void Start(string[] args, bool append = false)
     {
         try
         {
-            File.WriteAllText(FilePath, $"Wingspan Access Installer {BuildInfo.Version}, {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}" +
-                $"Arguments: {string.Join(" ", args)}{Environment.NewLine}");
+            string start = $"Wingspan Access Installer {BuildInfo.Version}, {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}" +
+                           $"Arguments: {string.Join(" ", args)}{Environment.NewLine}";
+            if (append)
+                File.AppendAllText(FilePath, Environment.NewLine + start);
+            else
+                File.WriteAllText(FilePath, start);
         }
         catch (IOException)
         {

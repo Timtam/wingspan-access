@@ -40,7 +40,16 @@ $common = @('-c', $Configuration, '-nologo', "-p:RepositorySlug=$RepositorySlug"
 dotnet build (Join-Path $root 'src\WingspanAccess\WingspanAccess.csproj') @common -p:UseGameReferences=false
 if ($LASTEXITCODE -ne 0) { throw 'Building the mod failed' }
 
+# The installer gets the Static Forms key for problem reports from WA_STATICFORMS_KEY (the release
+# and CI workflows set it from the repository secret STATICFORMS_KEY); without it, reports are off.
 dotnet build (Join-Path $root 'installer\WingspanAccessInstaller\WingspanAccessInstaller.csproj') @common
 if ($LASTEXITCODE -ne 0) { throw 'Building the installer failed' }
+
+# The installer's tests: the ALTCHA solver, the Static Forms client against a local stand-in,
+# cleaning and packing of the report's attachments.
+dotnet build (Join-Path $root 'installer\WingspanAccessInstaller.Tests\WingspanAccessInstaller.Tests.csproj') @common
+if ($LASTEXITCODE -ne 0) { throw 'Building the installer tests failed' }
+& (Join-Path $root "installer\WingspanAccessInstaller.Tests\bin\$Configuration\net48\WingspanAccessInstaller.Tests.exe")
+if ($LASTEXITCODE -ne 0) { throw 'The installer tests failed' }
 
 & (Join-Path $PSScriptRoot 'package.ps1') -Configuration $Configuration -RepositorySlug $RepositorySlug -PrismDll $PrismDll

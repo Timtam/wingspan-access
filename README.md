@@ -101,6 +101,33 @@ time; it updates the mod and itself.
 To turn off the check at start, set `CheckOnStart = false` in the section `[Updates]` of
 `BepInEx\config\wingspan.access.cfg`. The check sends one request to the GitHub API and nothing else.
 
+## Reporting a problem
+
+Press **F4 twice** in the game. A window opens beside the game, which keeps running: describe what
+happened, add your e-mail address if you want an answer, and choose what to attach. The same window
+opens from the installer (*Report a problem*) and from the Start menu entry *Wingspan Access -
+Report a problem* (named in the language of Windows), for when the game does not start at all. It
+is a normal Windows window that screen readers read on their own; Tab moves through it.
+
+What can go along:
+
+- BepInEx's log of the current or last game session (`BepInEx\LogOutput.log`), with everything
+  the mod said and did;
+- the mod's logs of the game sessions before. The mod keeps the last three in
+  `BepInEx\plugins\WingspanAccess\logs` (`session-1.log` is the newest), because BepInEx empties
+  its log at every start, so after a crash the crashed session's log would be gone;
+- Unity's logs of the game (`Player.log` and `Player-prev.log` in
+  `%USERPROFILE%\AppData\LocalLow\Monster Couch\Wingspan`) and the installer's log;
+- the game's crash dumps (from `%TEMP%\Monster Couch\Wingspan\Crashes`), the ones since the last
+  report. They are not chosen at first: a dump holds part of the game's memory and can't be
+  cleaned.
+
+Before sending, your Windows user name, computer name and Steam ID are replaced in the logs. The
+logs of online games contain the other players' names. Everything goes into one ZIP of at most
+4 MB (long logs keep their start and end), and the report goes by e-mail to the developer through
+the form service [Static Forms](https://www.staticforms.dev), protected against spam by ALTCHA (the
+window solves its puzzle on its own). Nothing is sent unless you press *Send*.
+
 ## Keys
 
 While the mod is running it replaces the game's own keyboard shortcuts. The mouse keeps working.
@@ -119,6 +146,7 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | H | Hide the interface and show it again (gamepad left stick) |
 | S | Play the call of the bird under the zone cursor or the selected card |
 | V | Play the spoken trivia about that bird |
+| L, F, E, N, P, W, B | Questions about that bird, see "Bird questions" below |
 | Tab / Shift+Tab | Next / previous card |
 | Page Up / Page Down | Read the previous / next message again (see "Message history") |
 | Control+Page Up / Control+Page Down | Read the first / latest message |
@@ -126,6 +154,7 @@ While the mod is running it replaces the game's own keyboard shortcuts. The mous
 | F1 | List the keys |
 | F2 | Read the whole screen, including the current task |
 | F3 | Read the description (tooltip) of the selected element |
+| F4 | Report a problem: press twice to open the report window beside the game (see "Reporting a problem") |
 | F5 | Check for updates. Twice: install the update (see "Updates") |
 | F11 | Mod status: speech output, language, current screen |
 
@@ -149,18 +178,19 @@ choice the task opens (like nectar or seed for a die taken in zone 4) pauses the
 reach it; once it is answered the zone goes on ("Back in zone 5"). A new task closes the zone,
 so the arrow keys work for the game's own choices again. Outside zones, too, Up and Down read the
 selected card line by line where the game's selection is on a card in a single row, like the tray
-while drawing or the hand. The starting choice is one row as well: Left and Right go through the
+while drawing, the hand, or the birds of one habitat while you activate their powers (at the end
+of a round, say). The starting choice is one row as well: Left and Right go through the
 dealt cards (name, points, habitats and food cost), then the food, then the switch to the bonus
 cards (and back), Home and End jump to the first and the last, Up and Down read the selected card
 line by line, Enter takes or returns it.
 
 | Key | Zone |
 | --- | --- |
-| 1, 2, 3 | Forest, grassland, wetland: the birds in that habitat, then its next free place: what a bird costs there in eggs and what the habitat's action gives once it is there (Up and Down: what the action gives now and after the next bird, and the egg cost of every place). Also moves the view there, so Enter takes that habitat's action. While you choose an action, the zone's name also says what the action gives now; while you choose the habitat for a bird, what the bird costs there and what it unlocks |
+| 1, 2, 3 | Forest, grassland, wetland: the birds in that habitat, then its next free place: what a bird costs there in eggs and what the habitat's action gives once it is there (Up and Down: what the action gives now and after the next bird, and the egg cost of every place). Also moves the view there, so Enter takes that habitat's action. While you choose an action, the zone's name also says what the action gives now; while you choose the habitat for a bird, what the bird costs there and what it unlocks. With your hand open (7) to play a bird, the first press only turns the view: it says what the selected bird costs there and what it unlocks, and the cursor stays on the card, so Enter plays it there; pressing the same key again moves into the habitat |
 | 4 | Birdfeeder: the dice; while you take food, these are the dice to choose |
 | 5 | Bird tray: the face-up cards and the deck |
 | 6 | Your supply: food and the number of cards in your hand |
-| 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card. When a task asks for a card from your hand (to discard or tuck it), the cursor selects it and Enter marks it. While you choose your starting cards, 7 shows the dealt cards instead: Enter chooses a card or puts it back |
+| 7 | Your hand. Opens it when you may play a bird; Enter plays the selected card in the habitat in view, which 1, 2 and 3 turn to without leaving the hand. When a task asks for a card from your hand (to discard or tuck it), the cursor selects it and Enter marks it. While you choose your starting cards, 7 shows the dealt cards instead: Enter chooses a card or puts it back |
 | 8 | Status: round, your actions left, whose turn it is |
 | 9 | Players with their birds, food and cards, you first. Enter on a player makes 1 to 3 read that player's board; Enter on yourself ("You") switches back, and so does the start of your next turn. The Automa (solo opponent) has no habitats: its line gives its face-up and face-down birds and its eggs, Up and Down name its face-up birds |
 | 0 | Round goals with the standings; Up and Down also read the game's explanation of the goal and, for goals about bird traits (beak, power colour, points, nests, eggs, tucked cards), which of your birds count for the current and the coming rounds |
@@ -169,6 +199,21 @@ When the current task lets you choose the item under the cursor (a bird to lay a
 draw, a die to take), moving the cursor selects it in the game as well, so Enter acts on it.
 
 When the game shows controller hints, the mod reads them as the matching keyboard keys.
+
+### Bird questions
+
+Single keys answer one question about the bird under the zone cursor or the selected card, without
+reading through all of its lines. They also work in the bird atlas and while you pay for a bird.
+
+| Key | Answer |
+| --- | --- |
+| L | Its habitats; on a board also where it lives ("lives in your wetland, place 1", or on another player's board); in your hand where you can play it now, or why not ("not enough food") |
+| F | Its food cost |
+| E | Its eggs: on a board the eggs of its limit, its cached food and tucked cards ("1 of 3 eggs, cached 1 seed"); elsewhere how many it can hold |
+| N | Its nest |
+| P | Its power with the power's colour ("power: brown, WHEN ACTIVATED: ...") |
+| W | Its wingspan (flightless birds count as any wingspan) |
+| B | The direction of its beak |
 
 ### Message history
 
@@ -182,8 +227,10 @@ Announcements of the selected element, zones and information you asked for (F-ke
 1. A new turn is announced ("Your turn. Round 1 of 4. 8 turns left"). Press Enter.
 2. Choose an action. The habitat in view is announced. 1, 2 and 3 move to forest (gain food),
    grassland (lay eggs) and wetland (draw cards); Enter takes the action of the habitat you are in.
-3. To play a bird, first choose its habitat with 1, 2 or 3, then press 7 for your hand, choose a card
-   with Left and Right (each card says where the rules let you play it now) and press Enter. The mod
+3. To play a bird, press 7 for your hand and choose a card with Left and Right (each card says where
+   the rules let you play it now). Press 1, 2 or 3 for its habitat: the view turns there and the mod
+   says what the bird costs there in eggs and what it unlocks, while the cursor stays on the card
+   (pressing the same key again would move into the habitat). Then press Enter. The mod
    reads the cost and the proposed payment; Space accepts it, the Change button lets you pick the
    food yourself (Backspace takes the last one out again). If the place costs eggs, pick the
    birds to take them from with Enter. Escape closes the hand again.
@@ -191,7 +238,8 @@ Announcements of the selected element, zones and information you asked for (F-ke
    A card drawn from the deck is shown first: one Space puts it into your hand, the next confirms.
    The mod says how much food you may take, how many cards are left to draw and how many eggs to lay.
    Where the slot offers a trade (for example a card for one more die in the forest), X starts it;
-   then choose the card with 7 and Enter, and confirm with Space.
+   then choose the card with 7 and Enter, and confirm with Space. While you draw cards with the
+   Oceania player mat, X also uses your wetland's trade, such as discarding food for a new tray.
 5. When the other players have moved, the mod tells you what they did. Bird powers that give you an
    extra action between turns are announced as "out-of-turn action".
 6. At the end of a round the mod names the birds whose "round end" powers you can activate, then
@@ -303,9 +351,19 @@ use the game's language codes, for example `en`, `de`, `fr`, `pt-BR`. To add a l
 ## Troubleshooting
 
 - The log is in `BepInEx\LogOutput.log` in the game folder. Every spoken message is also written there.
+  The easiest way to send it is the problem report (F4 twice, see "Reporting a problem").
 - F11 tells you which speech output is in use.
 - The installer writes its log to `%TEMP%\WingspanAccessInstaller.log`.
 - After a game update, start the game once and wait; BepInEx regenerates its files.
+- Keys suddenly reach Steam instead of the game (in Big Picture mode you hear its sounds): the Steam
+  overlay has opened. Its default shortcut is Shift+Tab, which the mod also uses (previous card,
+  and the control above in text fields); after Alt+Tab, Steam sometimes opens it on Shift alone.
+  Shift+Tab closes it again. To avoid it, change the overlay shortcut in Steam under Settings >
+  In Game, or turn the overlay off for Wingspan in its Properties under General.
+- After the game, Steam in Big Picture mode no longer reacts to the keyboard: Steam does not
+  always take the focus back from a closed game. Switching to Steam with Alt+Tab can help;
+  otherwise restart Steam. The mod's controller exists only inside the game, so Steam does not
+  see it.
 
 ## License
 

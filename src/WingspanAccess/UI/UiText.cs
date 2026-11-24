@@ -28,7 +28,7 @@ internal static class UiText
                 return row;
 
             string special = SetupDescriber.Describe(target) ?? OverviewDescriber.Describe(target) ?? CardDescriber.Describe(target) ??
-                SaveDescriber.Describe(target) ?? NewsDescriber.Describe(target);
+                SaveDescriber.Describe(target) ?? NewsDescriber.Describe(target) ?? FoodToggleDescriber.Describe(target);
             if (special != null)
             {
                 string cardPosition = Position(target);

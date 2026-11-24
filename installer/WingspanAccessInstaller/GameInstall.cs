@@ -38,6 +38,13 @@ internal static class GameInstall
     public const string PluginFileName = "WingspanAccess.dll";
     public const string GameProcessName = "Wingspan";
 
+    /// <summary>The game's company and product name, which Unity uses for its log and crash folders.</summary>
+    public const string GameCompany = "Monster Couch";
+    public const string GameProduct = "Wingspan";
+
+    /// <summary>The mod's session logs (logs\session-1.log to -3) and the time of the last problem report.</summary>
+    public const string LogsFolderName = "logs";
+
     /// <summary>A line only BepInEx's own changelog.txt has; other files of that name stay.</summary>
     private const string BepInExChangelogMarker = "Changelog (excluding merge commits)";
 
@@ -96,6 +103,23 @@ internal static class GameInstall
         return processes.Count > 0;
     }
 
+    /// <summary>Brings the running game's window to the front again (after the report window).</summary>
+    public static void ActivateGame(string gameDir)
+    {
+        foreach (Process process in GameProcesses(gameDir))
+        {
+            using (process)
+            {
+                IntPtr window = process.MainWindowHandle;
+                if (window == IntPtr.Zero)
+                    continue;
+                bool active = NativeMethods.BringToFront(window);
+                Log.Detail($"Back to Wingspan (process {process.Id}): {(active ? "done" : "Windows refused")}");
+                return;
+            }
+        }
+    }
+
     /// <summary>Asks the game to close, like its close button.</summary>
     public static void CloseGame(string gameDir)
     {
@@ -149,13 +173,16 @@ internal static class GameInstall
 
             Log.Info(Strings.Get("installing_mod", version));
             string pluginDir = PluginDir(game);
-            DeleteDirectory(pluginDir);
-            CopyDirectory(packagedPlugin, pluginDir);
+            InstallPluginFolder(packagedPlugin, pluginDir);
 
             Configure(package, game);
             CopySelf(pluginDir);
             if (request.WriteRegistry)
+            {
                 UninstallEntry.Write(game, version);
+                StartMenu.UpdateReportShortcut(Path.Combine(pluginDir, Program.ExeName), game);
+            }
+
             return version;
         }
         finally
@@ -176,7 +203,11 @@ internal static class GameInstall
             // The game was moved or removed; only the entry under Installed apps is left.
             Log.Info(Strings.Get("nothing_installed", game));
             if (writeRegistry)
+            {
                 UninstallEntry.Remove();
+                StartMenu.RemoveReportShortcuts();
+            }
+
             return;
         }
 
@@ -202,7 +233,46 @@ internal static class GameInstall
         }
 
         if (writeRegistry)
+        {
             UninstallEntry.Remove();
+            StartMenu.RemoveReportShortcuts();
+        }
+    }
+
+    /// <summary>
+    /// Replaces the plugin folder with the packaged one. The mod's session logs (and when the last
+    /// problem report went) stay, for a report after the update.
+    /// </summary>
+    private static void InstallPluginFolder(string packagedPlugin, string pluginDir)
+    {
+        string logs = Path.Combine(pluginDir, LogsFolderName);
+        string keptLogs = null;
+        if (Directory.Exists(logs))
+        {
+            keptLogs = NewTempDir("WingspanAccessLogs");
+            CopyDirectory(logs, keptLogs);
+        }
+
+        try
+        {
+            DeleteDirectory(pluginDir);
+            CopyDirectory(packagedPlugin, pluginDir);
+            if (keptLogs == null)
+                return;
+            foreach (string kept in Directory.GetFiles(keptLogs, "*", SearchOption.AllDirectories))
+            {
+                string target = Path.Combine(logs, kept.Substring(keptLogs.Length).TrimStart('\\'));
+                if (File.Exists(target))
+                    continue;
+                Directory.CreateDirectory(Path.GetDirectoryName(target));
+                File.Copy(kept, target);
+            }
+        }
+        finally
+        {
+            if (keptLogs != null)
+                TryDeleteDirectory(keptLogs);
+        }
     }
 
     /// <summary>Sets the given keys in a BepInEx config file and keeps everything else as it is.</summary>

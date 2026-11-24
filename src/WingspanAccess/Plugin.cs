@@ -18,6 +18,7 @@ public class Plugin : BasePlugin
     public override void Load()
     {
         Logger = Log;
+        Diagnostics.SessionLog.Start(Log);
         Loc.Initialize();
         ScreenReader.Initialize(Log);
         Updates.UpdateChecker.Initialize(Config);

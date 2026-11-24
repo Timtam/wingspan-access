@@ -41,10 +41,13 @@ jobs:
         if: steps.prism.outputs.cache-hit != 'true'
         uses: seanmiddleditch/gha-setup-ninja@v6
 
+      # The installer gets the Static Forms key for problem reports from the repository secret
+      # STATICFORMS_KEY; pull requests from forks get no secrets, so their builds have reports off.
       - name: Build and package
         shell: pwsh
         env:
           REPOSITORY: ${{ github.repository }}
+          WA_STATICFORMS_KEY: ${{ secrets.STATICFORMS_KEY }}
         run: ./tools/build-release.ps1 -RepositorySlug $env:REPOSITORY
 
       - name: Upload the ZIP

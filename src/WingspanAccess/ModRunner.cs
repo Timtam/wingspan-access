@@ -27,6 +27,7 @@ internal static class ModRunner
         {
             Loc.UpdateLanguage();
             Updates.UpdateChecker.Tick();
+            Diagnostics.ProblemReportKey.Tick();
             if (!_announcedLoad && GamepadController.I != null)
             {
                 _announcedLoad = true;

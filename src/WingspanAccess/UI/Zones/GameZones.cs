@@ -66,13 +66,17 @@ internal sealed class HabitatZone : Zone
     }
 
     /// <summary>"Wald, Platz 3: kostet 1 Ei, schaltet frei: 2 Futter".</summary>
-    private string PlaceText(HabitatRow row, PlayBirdData bird)
+    private string PlaceText(HabitatRow row, PlayBirdData bird) =>
+        PlaceText(_habitat, row, bird?.BirdData, bird?.EggsDiscountChosenByPlayer ?? 0);
+
+    /// <summary>The next place of a habitat for a bird: its egg cost there and what the place unlocks.</summary>
+    public static string PlaceText(ActionType habitatType, HabitatRow row, BirdData bird, int eggsDiscount = 0)
     {
-        string habitat = Loc.Get("habitat." + _habitat);
+        string habitat = Loc.Get("habitat." + habitatType);
         if (row.Full)
             return Loc.Get("zone.habitat_full", habitat);
-        string cost = EggCostText(HabitatRow.EggCost(row.Used, bird?.BirdData, bird?.EggsDiscountChosenByPlayer ?? 0));
-        string unlocks = HabitatRow.Yield(_habitat, row.Next);
+        string cost = EggCostText(HabitatRow.EggCost(row.Used, bird, eggsDiscount));
+        string unlocks = HabitatRow.Yield(habitatType, row.Next);
         return unlocks == null
             ? Loc.Get("zone.habitat_place_cost", habitat, row.NextPlace, cost)
             : Loc.Get("zone.habitat_place", habitat, row.NextPlace, cost, unlocks);
@@ -558,6 +562,63 @@ internal sealed class HandZone : Zone
         }
 
         StepToTarget();
+    }
+
+    /// <summary>The habitat key pressed last in the open hand (the view turned there); None if none.</summary>
+    private KeyCode _previewKey;
+
+    /// <summary>The bird selected in the hand when the view turned (0 for none).</summary>
+    private int _previewBird;
+
+    /// <summary>
+    /// With the hand open to play a bird, 1 to 3 first only turn the view to the habitat, where Enter
+    /// plays the selected card, and say what the bird costs there and what it unlocks; the cursor stays
+    /// in the hand. The same key again for the same bird enters the habitat's zone; after choosing
+    /// another bird it turns the view again, for that bird. False when the key enters the habitat
+    /// (the second press, or no bird to play).
+    /// </summary>
+    public bool PreviewHabitat(KeyCode key)
+    {
+        ActionType? habitat = key switch
+        {
+            KeyCode.Alpha1 => ActionType.GainFood,
+            KeyCode.Alpha2 => ActionType.LayEggs,
+            KeyCode.Alpha3 => ActionType.DrawBirds,
+            _ => null,
+        };
+        PlayerHandUI hand = Hand;
+        Decision task = Task();
+        bool playing = task != null && (task.TryCast<ChooseAction_Decision>() != null || task.TryCast<BasePlayAnotherBird_Decision>() != null);
+        if (habitat == null || hand == null || !hand.IsInCardPreview || !playing)
+        {
+            _previewKey = KeyCode.None;
+            return false;
+        }
+
+        List<ZoneItem> items = Items();
+        int selected = SelectedIndex(items);
+        int birdId = selected >= 0 ? items[selected].BirdId : 0;
+        if (key == _previewKey && birdId == _previewBird)
+        {
+            Plugin.Logger.LogInfo($"[Zone] hand: {key} again for bird {birdId}, entering the habitat");
+            _previewKey = KeyCode.None;
+            return false;
+        }
+
+        _previewKey = key;
+        _previewBird = birdId;
+        if (UIGod.I != null && UIGod.I.GetCurrentHabitat() != habitat.Value)
+            UIGod.I.GoTo(habitat.Value);
+
+        BirdData bird = birdId > 0 ? CardDescriber.DataOf(birdId) : null;
+        Rules.Player player = GameStateCache.LocalPlayer;
+        HabitatRow row = player == null ? null : HabitatRow.Read(player, habitat.Value);
+        string text = row == null ? Loc.Get("habitat." + habitat.Value) : HabitatZone.PlaceText(habitat.Value, row, bird);
+        if (bird != null && CardDescriber.CanPlayIn(bird, habitat.Value) == false)
+            text = UiText.JoinSentences(new[] { text, Loc.Get("zone.hand_habitat_not_playable", GameReader.BirdName(birdId)) });
+        Plugin.Logger.LogInfo($"[Zone] hand: view turned to {habitat.Value} for bird {birdId}");
+        ScreenReader.SayTransient(text);
+        return true;
     }
 
     /// <summary>Moves the game's own hand selection to the card, the way the gamepad does.</summary>
