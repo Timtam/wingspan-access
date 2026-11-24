@@ -5,6 +5,8 @@ release workflow turns that section into the next version and uses it as the rel
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-24
+
 ### Added
 
 - With your hand open to play a bird, 1, 2 and 3 first only turn the view to that habitat and say
